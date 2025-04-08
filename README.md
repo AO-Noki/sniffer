@@ -437,6 +437,44 @@ O projeto é estruturado nos seguintes componentes:
 12. **Verificador de Compatibilidade**: Valida compatibilidade de plataforma e requisitos
 13. **Monitor de Processos**: Detecta a execução do jogo para ativar/desativar captura
 
+## Roadmap
+
+### Em Desenvolvimento
+
+- [x] **Sistema Base**: Classes principais e organização do projeto
+- [x] **Detecção de Plataforma**: Sistema para identificar o ambiente de execução
+- [x] **Argumentos de Linha de Comando**: Parser e processador de comandos
+- [x] **Sistema de Registro (Logs)**: Configuração de logging com rotação
+- [x] **Suporte Windows**: Implementação das classes específicas para Windows
+  - [x] **Gerenciador de Serviços Windows**: Instalação e controle de serviços
+  - [x] **Verificação de Informações de Sistema**: Obtenção de dados da plataforma
+  - [x] **Instalador Npcap/WinPcap**: Download e instalação automatizada  
+  - [x] **Captura de Pacotes Windows**: Integração com pcap usando Scapy
+  - [x] **Interface com Protocolo Photon**: Classes para captura e análise de pacotes Photon
+  - [x] **Testes para o Módulo Windows**: Validação da implementação Windows
+- [ ] **Implementação do Protocolo Photon**: Decodificador para o protocolo de rede
+  - [ ] **Estrutura Base do Parser**: Classes para decodificação de pacotes
+  - [ ] **Decodificação de Comandos**: Processamento de comandos Photon
+  - [ ] **Reconstrução de Mensagens**: Reagrupar mensagens fragmentadas
+  - [ ] **Parser de Eventos**: Analisar eventos específicos do jogo
+- [ ] **Servidor WebSocket**: Interface para enviar dados em tempo real
+- [ ] **Interface Web Básica**: Dashboard para exibir dados capturados
+- [ ] **Modo de Baixo Consumo**: Detecção do jogo e ajuste de uso de recursos
+- [ ] **Automatização de CI/CD**: GitHub Actions para build e release
+- [ ] **Suporte Linux**: Implementação básica para Linux
+- [ ] **Suporte macOS**: Implementação básica para macOS
+
+### Pendente (Futuro)
+
+- [ ] **Verificações de Compatibilidade**: Melhorias nos checks de sistema
+- [ ] **Gerenciamento de Memória Avançado**: Otimização para dispositivos com restrições
+- [ ] **Módulo de Atualizações**: Sistema de verificação e instalação de atualizações
+- [ ] **Painel de Administração**: Interface para controle e configuração
+- [ ] **Suporte a Dispositivos Móveis**: Adaptação para Android e iOS
+- [ ] **Análise Avançada de Pacotes**: Machine learning para detecção de padrões
+- [ ] **Instalador Gráfico**: Simplificação do processo de instalação
+- [ ] **Documentação Completa**: Manual de usuário e referência para desenvolvedores
+
 ## Fluxo de Operação
 
 1. O sniffer verifica compatibilidade com a plataforma atual

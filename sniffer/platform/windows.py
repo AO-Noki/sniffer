@@ -14,9 +14,13 @@ import subprocess
 import ctypes
 import logging
 import winreg
-from typing import List, Dict, Optional, Tuple, Union
+from typing import List, Dict, Optional, Tuple, Union, Any, Callable, Mapping
 import asyncio
 import platform
+
+# Importações locais
+from .pcaptura import PcapManager as BasePcapManager
+from .pcaptura import PcapInstaller, PhotonCapture, SCAPY_AVAILABLE
 
 # Configuração do logger
 logger = logging.getLogger("sniffer.platform.windows")
@@ -173,8 +177,23 @@ class WindowsPcapManager:
     """Gerenciador de captura de pacotes para Windows usando Npcap/WinPcap."""
     
     def __init__(self):
+        """Inicializa o gerenciador de pacotes Windows."""
+        # Verificar se o Npcap/WinPcap está instalado
         self.is_npcap_installed = self._check_npcap_installed()
         self.is_winpcap_installed = self._check_winpcap_installed() if not self.is_npcap_installed else False
+        
+        # Inicializar o gerenciador de captura
+        self.pcap_manager = None
+        if SCAPY_AVAILABLE:
+            self.pcap_manager = BasePcapManager()
+        
+        # Verificar se a captura está disponível
+        self.capture_available = SCAPY_AVAILABLE and (self.is_npcap_installed or self.is_winpcap_installed)
+        
+        # Inicializar o capturador Photon quando disponível
+        self.photon_capture = None
+        if self.capture_available and self.pcap_manager:
+            self.photon_capture = PhotonCapture(self.pcap_manager)
     
     def _check_npcap_installed(self) -> bool:
         """Verifica se o Npcap está instalado no sistema."""
@@ -195,13 +214,21 @@ class WindowsPcapManager:
             return False
     
     def get_network_interfaces(self) -> List[Dict[str, str]]:
-        """Obtém a lista de interfaces de rede disponíveis para captura."""
-        # Implementação inicial, será complementada com chamadas reais ao pcap
+        """
+        Obtém a lista de interfaces de rede disponíveis para captura.
+        
+        Returns:
+            Lista de dicionários com informações sobre as interfaces.
+        """
+        if self.capture_available and self.pcap_manager:
+            # Usar o gerenciador pcap para obter interfaces
+            return self.pcap_manager.get_available_interfaces()
+        
+        # Fallback para usar ipconfig se o pcap não estiver disponível
         interfaces = []
         
         try:
-            # Aqui usaremos o módulo de captura (pcap) quando implementado
-            # Por enquanto retornamos as interfaces de rede do Windows via ipconfig
+            # Obter interfaces via ipconfig
             cmd = ["ipconfig", "/all"]
             result = subprocess.run(cmd, capture_output=True, text=True, encoding='cp850')
             
@@ -236,6 +263,88 @@ class WindowsPcapManager:
             logger.error(f"Erro ao obter interfaces de rede: {e}")
             return []
     
+    def start_capture(self, interface: str, filter_str: str = "", async_mode: bool = True) -> bool:
+        """
+        Inicia a captura de pacotes na interface especificada.
+        
+        Args:
+            interface: Nome ou índice da interface para captura.
+            filter_str: Filtro de pacotes (formato BPF).
+            async_mode: Se True, a captura é feita em um thread separado.
+            
+        Returns:
+            True se a captura foi iniciada com sucesso, False caso contrário.
+        """
+        if not self.capture_available or not self.pcap_manager:
+            logger.error("Captura de pacotes não disponível. Npcap/WinPcap não instalado ou Scapy não disponível.")
+            return False
+        
+        return self.pcap_manager.start_capture(interface, filter_str, async_mode)
+    
+    def start_photon_capture(self, interface: str, async_mode: bool = True) -> bool:
+        """
+        Inicia a captura de pacotes Photon na interface especificada.
+        
+        Args:
+            interface: Nome ou índice da interface para captura.
+            async_mode: Se True, a captura é feita em um thread separado.
+            
+        Returns:
+            True se a captura foi iniciada com sucesso, False caso contrário.
+        """
+        if not self.capture_available or not self.photon_capture:
+            logger.error("Captura de pacotes Photon não disponível.")
+            return False
+        
+        return self.photon_capture.start_capture(interface, async_mode)
+    
+    def stop_capture(self) -> bool:
+        """
+        Para a captura de pacotes em andamento.
+        
+        Returns:
+            True se a captura foi parada com sucesso, False caso contrário.
+        """
+        if not self.capture_available or not self.pcap_manager:
+            return False
+        
+        if self.pcap_manager.is_capturing():
+            return self.pcap_manager.stop_capture()
+        
+        return True
+    
+    def add_packet_callback(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+        """
+        Adiciona uma função de callback para processar pacotes capturados.
+        
+        Args:
+            callback: Função que será chamada para cada pacote capturado.
+        """
+        if self.capture_available and self.pcap_manager:
+            self.pcap_manager.add_packet_callback(callback)
+    
+    def add_photon_callback(self, callback: Callable[[Dict[str, Any]], None]) -> None:
+        """
+        Adiciona uma função de callback para processar pacotes Photon capturados.
+        
+        Args:
+            callback: Função que será chamada para cada pacote Photon capturado.
+        """
+        if self.capture_available and self.photon_capture:
+            self.photon_capture.add_photon_callback(callback)
+    
+    def is_capturing(self) -> bool:
+        """
+        Verifica se a captura está em andamento.
+        
+        Returns:
+            True se a captura está em andamento, False caso contrário.
+        """
+        if not self.capture_available or not self.pcap_manager:
+            return False
+        
+        return self.pcap_manager.is_capturing()
+    
     def download_npcap_installer(self, target_path: str) -> bool:
         """
         Baixa o instalador do Npcap para o caminho especificado.
@@ -268,62 +377,33 @@ class WindowsPcapManager:
             installer_path: Caminho para o instalador do Npcap, se já estiver baixado
             
         Returns:
-            bool: True se a instalação for bem-sucedida, False caso contrário
+            bool: True se a instalação foi bem-sucedida, False caso contrário
         """
+        # Se o Npcap já estiver instalado, não fazer nada
         if self.is_npcap_installed:
             logger.info("Npcap já está instalado.")
             return True
+        
+        # Usar o instalador do módulo pcaptura
+        result = PcapInstaller.install_pcap()
+        
+        # Atualizar status de instalação se foi bem sucedido
+        if result:
+            self.is_npcap_installed = True
             
-        try:
-            if not installer_path:
-                # Baixar o instalador para um local temporário
-                temp_dir = os.environ.get('TEMP', os.path.expanduser('~'))
-                installer_path = os.path.join(temp_dir, "npcap_installer.exe")
-                if not self.download_npcap_installer(installer_path):
-                    logger.error("Falha ao baixar o instalador do Npcap.")
-                    return False
-            
-            # Checar se temos privilégios de administrador
-            if not ctypes.windll.shell32.IsUserAnAdmin():
-                logger.warning("Privilégios de administrador são necessários para instalar o Npcap.")
-                # Solicitar elevação de privilégios
-                if sys.version_info >= (3, 7):
-                    # No Python 3.7+ podemos usar esta abordagem
-                    ctypes.windll.shell32.ShellExecuteW(
-                        None, "runas", installer_path, 
-                        "/S /winpcap_mode=yes", None, 1
-                    )
-                    logger.info("Solicitação de elevação de privilégios para instalar Npcap.")
-                    return False  # Não sabemos se a instalação terá êxito
-                else:
-                    logger.error("Não foi possível solicitar elevação de privilégios.")
-                    return False
-            
-            # Se tivermos privilégios de administrador, instalar diretamente
-            logger.info("Iniciando instalação do Npcap...")
-            result = subprocess.run(
-                [installer_path, "/S", "/winpcap_mode=yes"], 
-                capture_output=True, 
-                text=True
-            )
-            
-            if result.returncode == 0:
-                logger.info("Npcap instalado com sucesso.")
-                self.is_npcap_installed = True
-                return True
-            else:
-                logger.error(f"Falha na instalação do Npcap: {result.stderr}")
-                return False
-                
-        except Exception as e:
-            logger.error(f"Erro ao instalar Npcap: {e}")
-            return False
+            # Inicializar o gerenciador de captura e o Photon se não estiver inicializado
+            if not self.pcap_manager and SCAPY_AVAILABLE:
+                self.pcap_manager = BasePcapManager()
+                self.photon_capture = PhotonCapture(self.pcap_manager)
+                self.capture_available = True
+        
+        return result
 
 class WindowsSystemInfo:
     """Fornece informações sobre o sistema Windows."""
     
     @staticmethod
-    def get_windows_version() -> Dict[str, Union[str, int]]:
+    def get_windows_version() -> Mapping[str, Union[str, int]]:
         """Obtém informações detalhadas sobre a versão do Windows."""
         try:
             version_info = platform.win32_ver()
@@ -361,7 +441,7 @@ class WindowsSystemInfo:
             return False
     
     @staticmethod
-    async def monitor_system_resources() -> Dict[str, float]:
+    async def monitor_system_resources() -> Mapping[str, Union[float, str]]:
         """
         Monitora recursos do sistema em tempo real.
         
