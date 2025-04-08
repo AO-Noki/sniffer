@@ -14,9 +14,11 @@ from typing import Dict, List, Optional, Any, Tuple
 
 # Importações locais
 from sniffer.platform import (
-    ServiceManager, 
-    PcapManager,
-    get_platform
+    get_platform,
+    check_admin,
+    is_service_installed,
+    install_service as platform_install_service,
+    uninstall_service as platform_uninstall_service
 )
 
 # Configurar logger
@@ -35,7 +37,7 @@ def request_admin() -> bool:
     if platform_name == "windows":
         try:
             # Verificar se já está rodando como administrador no Windows
-            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+            return check_admin()
         except Exception as e:
             logger.error(f"Erro ao verificar privilégios de administrador: {e}")
             return False
@@ -185,6 +187,11 @@ class CommandLineParser:
             "message": ""
         }
         
+        # Nome e caminhos do serviço
+        service_name = "AO-Noki-Sniffer"
+        binary_path = os.path.abspath(sys.argv[0])
+        display_name = "AO-Noki Sniffer"
+        
         # Processar argumentos de gerenciamento de serviço
         if args.service:
             result["mode"] = "service"
@@ -201,8 +208,7 @@ class CommandLineParser:
                 result["exit_code"] = 1
                 result["message"] = "Privilégios de administrador são necessários para instalar o serviço"
             else:
-                service_manager = ServiceManager()
-                if service_manager.install_service():
+                if platform_install_service(service_name, binary_path, display_name):
                     result["message"] = "Serviço instalado com sucesso"
                 else:
                     result["success"] = False
@@ -216,8 +222,7 @@ class CommandLineParser:
                 result["exit_code"] = 1
                 result["message"] = "Privilégios de administrador são necessários para desinstalar o serviço"
             else:
-                service_manager = ServiceManager()
-                if service_manager.uninstall_service():
+                if platform_uninstall_service(service_name):
                     result["message"] = "Serviço removido com sucesso"
                 else:
                     result["success"] = False
@@ -231,13 +236,27 @@ class CommandLineParser:
                 result["exit_code"] = 1
                 result["message"] = "Privilégios de administrador são necessários para iniciar o serviço"
             else:
-                service_manager = ServiceManager()
-                if service_manager.start_service():
-                    result["message"] = "Serviço iniciado com sucesso"
-                else:
+                # No nosso modelo atualizado, o start_service está embutido na função de instalação
+                # Podemos usar subprocess diretamente para iniciar o serviço
+                try:
+                    import subprocess
+                    start_cmd = ["sc", "start", service_name]
+                    process = subprocess.run(
+                        start_cmd, 
+                        capture_output=True, 
+                        text=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                    if process.returncode == 0:
+                        result["message"] = "Serviço iniciado com sucesso"
+                    else:
+                        result["success"] = False
+                        result["exit_code"] = process.returncode
+                        result["message"] = f"Falha ao iniciar o serviço: {process.stderr}"
+                except Exception as e:
                     result["success"] = False
                     result["exit_code"] = 1
-                    result["message"] = "Falha ao iniciar o serviço"
+                    result["message"] = f"Erro ao iniciar o serviço: {e}"
             
         elif args.stop_service:
             result["exit"] = True
@@ -246,30 +265,28 @@ class CommandLineParser:
                 result["exit_code"] = 1
                 result["message"] = "Privilégios de administrador são necessários para parar o serviço"
             else:
-                service_manager = ServiceManager()
-                if service_manager.stop_service():
-                    result["message"] = "Serviço parado com sucesso"
-                else:
+                # Similar ao start_service, usamos subprocess diretamente
+                try:
+                    import subprocess
+                    stop_cmd = ["sc", "stop", service_name]
+                    process = subprocess.run(
+                        stop_cmd, 
+                        capture_output=True, 
+                        text=True,
+                        creationflags=subprocess.CREATE_NO_WINDOW
+                    )
+                    if process.returncode == 0:
+                        result["message"] = "Serviço parado com sucesso"
+                    else:
+                        result["success"] = False
+                        result["exit_code"] = process.returncode
+                        result["message"] = f"Falha ao parar o serviço: {process.stderr}"
+                except Exception as e:
                     result["success"] = False
                     result["exit_code"] = 1
-                    result["message"] = "Falha ao parar o serviço"
+                    result["message"] = f"Erro ao parar o serviço: {e}"
         
-        # Processar argumentos específicos para Windows
-        if get_platform() == "windows" and getattr(args, "install_npcap", False):
-            pcap_manager = PcapManager()
-            if pcap_manager.is_npcap_installed:
-                logger.info("Npcap já está instalado.")
-            else:
-                logger.info("Instalando Npcap...")
-                pcap_manager.install_npcap()
-                # Não marcamos como falha se não conseguirmos instalar o Npcap,
-                # pois o aplicativo pode continuar sem ele em alguns casos
-        
-        # Configurar modo de recurso
-        if args.low_resource:
-            logger.info("Modo de baixo consumo de recursos ativado")
-        
-        # Configurar modo de depuração
+        # Processar argumento debug
         if args.debug:
             logging.getLogger().setLevel(logging.DEBUG)
             logger.debug("Modo de depuração ativado")
@@ -279,10 +296,10 @@ class CommandLineParser:
 
 def parse_and_process_args() -> Tuple[Dict[str, Any], argparse.Namespace]:
     """
-    Função auxiliar para processar argumentos de linha de comando.
+    Função auxiliar para analisar e processar os argumentos de linha de comando.
     
     Returns:
-        Tupla com o resultado do processamento e os argumentos processados
+        Tupla com o resultado do processamento e os argumentos analisados.
     """
     parser = CommandLineParser()
     args = parser.parse_args()
