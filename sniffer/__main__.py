@@ -11,12 +11,14 @@ import signal
 import sys
 import threading
 import time
+import asyncio
 from typing import Dict, Any, List, Optional
 
 from sniffer.config import CONFIG, WS_DEFAULT_HOST, WS_DEFAULT_PORT
 from sniffer.platform import get_platform, is_platform_supported, get_system_info
 from sniffer.server import WebSocketServer
 from sniffer.utils.cli import parse_and_process_args
+from sniffer.core.capture import PacketCaptureManager
 
 logger = logging.getLogger("sniffer")
 
@@ -33,7 +35,8 @@ class SnifferApp:
         """Inicializa a aplicação."""
         self.running = False
         self.websocket_server: Optional[WebSocketServer] = None
-        self.capture_thread: Optional[threading.Thread] = None
+        self.capture_manager: Optional[PacketCaptureManager] = None
+        self.loop = asyncio.get_event_loop()
         
         # Signal handlers para encerramento limpo
         signal.signal(signal.SIGINT, self._signal_handler)
@@ -60,6 +63,20 @@ class SnifferApp:
         """
         logger.info(f"Sinal recebido: {sig}")
         self.shutdown()
+    
+    def _handle_packet(self, packet: Dict[str, Any]) -> None:
+        """
+        Manipula um pacote capturado.
+        
+        Args:
+            packet: Dados do pacote capturado
+        """
+        if self.websocket_server:
+            # Enviar pacote para clientes WebSocket de forma assíncrona
+            asyncio.run_coroutine_threadsafe(
+                self.websocket_server.send_packet(packet),
+                self.loop
+            )
     
     def start(self, mode: str = "default", args: Any = None):
         """
@@ -91,8 +108,16 @@ class SnifferApp:
         
         logger.info(f"Servidor WebSocket iniciado em {ws_host}:{ws_port}")
         
-        # Iniciar modo de captura de pacotes
-        # TODO: Implementar captura de pacotes
+        # Inicializar captura de pacotes
+        self.capture_manager = PacketCaptureManager()
+        self.capture_manager.add_callback(self._handle_packet)
+        
+        if not self.capture_manager.start():
+            logger.error("Falha ao iniciar captura de pacotes")
+            self.websocket_server.stop()
+            return
+        
+        logger.info("Captura de pacotes iniciada")
         
         self.running = True
         
@@ -141,16 +166,17 @@ class SnifferApp:
         
         logger.info("Encerrando AO-Noki Sniffer...")
         
+        # Parar captura de pacotes
+        if self.capture_manager:
+            logger.info("Parando captura de pacotes...")
+            self.capture_manager.stop()
+            self.capture_manager = None
+        
         # Parar servidor WebSocket
         if self.websocket_server:
             logger.info("Parando servidor WebSocket...")
             self.websocket_server.stop()
             self.websocket_server = None
-        
-        # Parar thread de captura
-        if self.capture_thread and self.capture_thread.is_alive():
-            logger.info("Parando captura de pacotes...")
-            # TODO: Implementar parada da captura
         
         self.running = False
         logger.info("AO-Noki Sniffer encerrado")
