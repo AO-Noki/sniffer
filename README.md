@@ -23,6 +23,18 @@ O Sniffer AO-Noki é uma ferramenta especializada para monitoramento de tráfego
 - **CI/CD Automatizado**: Workflows para geração de builds e releases automaticamente
 - **Modo de Baixo Consumo**: Reduz uso de recursos quando o jogo não estiver em execução
 
+## Compatibilidade
+
+O AO-Noki Sniffer é compatível com os seguintes sistemas operacionais:
+
+- Windows 10/11 (64-bit)
+- Linux (Ubuntu 20.04+, Debian 10+, CentOS 8+)
+- macOS 10.15+
+
+### Codificação de Caracteres
+
+O sistema utiliza a codificação CP850 para decodificar a saída de comandos no Windows, que é a codificação padrão do console em português. Isso garante que caracteres especiais sejam exibidos corretamente.
+
 ## Requisitos do Sistema
 
 - Windows 10/11, Linux, macOS, Android 9+ ou iOS 14+

@@ -551,3 +551,29 @@ def request_admin_privileges() -> bool:
     except Exception as e:
         logger.error(f"Erro ao solicitar privilégios de administrador: {e}")
         return False 
+
+def _run_command(self, command: str) -> str:
+    """Executa um comando e retorna sua saída.
+    
+    Args:
+        command: Comando a ser executado.
+        
+    Returns:
+        Saída do comando.
+        
+    Note:
+        Usa CP850 para decodificar a saída do comando pois é a codificação padrão
+        do console do Windows em português. Isso garante que caracteres especiais
+        sejam exibidos corretamente.
+    """
+    try:
+        result = subprocess.run(
+            command,
+            shell=True,
+            capture_output=True,
+            text=True,
+            encoding='cp850'  # Codificação padrão do console Windows em português
+        )
+        return result.stdout.strip()
+    except subprocess.CalledProcessError as e:
+        raise WindowsError(f"Erro ao executar comando: {e}") 

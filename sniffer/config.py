@@ -12,15 +12,6 @@ import platform
 import tempfile
 from typing import Dict, Any, Optional, Union, cast, TypedDict
 
-# Configuração de logging
-logger = logging.getLogger(__name__)
-
-# Informações da aplicação
-APP_NAME = "AO-Noki Sniffer"
-APP_VERSION = "0.1.0"
-APP_AUTHOR = "AO-Noki"
-APP_DESCRIPTION = "Ferramenta para análise e monitoramento de tráfego do protocolo Photon"
-
 # Configurações de protocolo
 PHOTON_DEFAULT_PORT = 5056
 PHOTON_PROTOCOLS = ["UDP", "TCP", "WebSocket", "HTTP"]
@@ -290,9 +281,24 @@ class ConfigManager:
         """
         return self.config.copy()
 
+# Instância global do gerenciador de configuração
+CONFIG = ConfigManager()
 
-# Instância global da configuração
-config_manager = None
+# Configuração do logger
+logger = logging.getLogger("sniffer.config")
+logger.setLevel(logging.INFO)
+
+# Configurar handler de arquivo com UTF-8
+log_file = os.path.join(CONFIG.get("log_dir", ""), "config.log")
+file_handler = logging.FileHandler(log_file, encoding='utf-8')
+file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
+logger.addHandler(file_handler)
+
+# Informações da aplicação
+APP_NAME = "AO-Noki Sniffer"
+APP_VERSION = "0.1.0"
+APP_AUTHOR = "AO-Noki"
+APP_DESCRIPTION = "Ferramenta para análise e monitoramento de tráfego do protocolo Photon"
 
 def get_config() -> ConfigManager:
     """
@@ -301,10 +307,7 @@ def get_config() -> ConfigManager:
     Returns:
         Instância do ConfigManager.
     """
-    global config_manager
-    if config_manager is None:
-        config_manager = ConfigManager()
-    return config_manager 
+    return CONFIG
 
 # Constante global para facilitar o acesso à configuração
 CONFIG = get_config() 
