@@ -5,21 +5,21 @@
 - [x] Implementação básica de captura de pacotes
 - [x] Decodificação do protocolo Photon
 - [x] Servidor WebSocket
-- [ ] Sistema de argumentos de linha de comando
-  - [ ] Argumento `-console` para exibição da interface de console
-  - [ ] Argumento `-service` para instalação como serviço do sistema
-  - [ ] Argumento `-uninstall-service` para remoção do serviço
-  - [ ] Parser de argumentos com suporte a múltiplos parâmetros
-  - [ ] Implementação de ajuda via `-help` ou `-h`
+- [x] Sistema de argumentos de linha de comando
+  - [x] Argumento `-console` para exibição da interface de console
+  - [x] Argumento `-service` para instalação como serviço do sistema
+  - [x] Argumento `-uninstall-service` para remoção do serviço
+  - [x] Parser de argumentos com suporte a múltiplos parâmetros
+  - [x] Implementação de ajuda via `-help` ou `-h`
 - [ ] Gestão de serviços do sistema
-  - [ ] Instalação do serviço específica por plataforma
-    - [ ] Windows: Criação de serviço via sc.exe e PowerShell
+  - [x] Instalação do serviço específica por plataforma
+    - [x] Windows: Criação de serviço via sc.exe e PowerShell
     - [ ] Linux: Geração e ativação de unit file para systemd
     - [ ] macOS: Criação de arquivo .plist para launchd
     - [ ] Android: Implementação de serviço em foreground
-  - [ ] Configuração de reinicialização automática
-  - [ ] Criação de tarefas de recuperação
-  - [ ] Desinstalação limpa do serviço
+  - [x] Configuração de reinicialização automática
+  - [x] Criação de tarefas de recuperação
+  - [x] Desinstalação limpa do serviço
 - [ ] Implementação do protocolo Photon
 
 ### Roadmap Técnico Avançado
@@ -181,12 +181,12 @@
 
 ##### 6.1 Abstração de Plataforma
 
-- [ ] **Framework de Compatibilidade Universal**
-  - [ ] HAL (Hardware Abstraction Layer) completa para todas as plataformas
+- [x] **Framework de Compatibilidade Universal**
+  - [x] HAL (Hardware Abstraction Layer) completa para todas as plataformas
   - [ ] Abstração de sistema de arquivos com paths normalizados
-  - [ ] Injeção de dependências para componentes específicos de plataforma
-  - [ ] Service manager abstrato para argumento `-service`
-    - [ ] Windows: API de Serviços do Windows
+  - [x] Injeção de dependências para componentes específicos de plataforma
+  - [x] Service manager abstrato para argumento `-service`
+    - [x] Windows: API de Serviços do Windows
     - [ ] Linux: Interface systemd via dbus ou arquivos de configuração
     - [ ] macOS: Wrapper para launchd
     - [ ] Android/iOS: Gerenciamento de serviços em foreground
@@ -284,8 +284,8 @@
 
 ##### 10.1 Framework de Testes Abrangente
 
-- [ ] **Suite de Testes Multi-nível**
-  - [ ] Testes unitários para cada componente
+- [x] **Suite de Testes Multi-nível**
+  - [x] Testes unitários para cada componente
   - [ ] Testes de integração com mocks avançados
   - [ ] Testes de performance com benchmarks automatizados
   - [ ] Testes de carga com geração sintética de pacotes
@@ -301,6 +301,74 @@
   - [ ] Ambiente de staging com tráfego real anonimizado
   - [ ] Ferramentas de diagnóstico para desenvolvimento
 
-### Roadmap de Implementação Inicial
+### Roadmap de Implementação Específico para Windows
 
-// ... existing code ...
+#### W1. Adaptação para Windows
+
+##### W1.1 Gestão de Serviços do Windows
+
+- [x] **Gerenciador de Serviços Windows**
+  - [x] Instalação de serviços via SC.exe
+  - [x] Verificação de privilégios de administrador
+  - [x] Obtenção de status do serviço
+  - [x] Configuração de recuperação automática após falhas
+  - [x] Gestão de ciclo de vida do serviço (start/stop)
+  - [x] Interface integrada com comandos de linha
+
+##### W1.2 Integração com Npcap/WinPcap
+
+- [x] **Gestão de Bibliotecas de Captura**
+  - [x] Detecção automática de Npcap/WinPcap
+  - [x] Download e instalação automática do Npcap
+  - [x] Obtenção de interfaces de rede para captura
+  - [ ] Inicialização otimizada de descritores de captura
+  - [ ] Configuração de promiscuous mode
+  - [ ] Suporte a timestamping de hardware quando disponível
+
+##### W1.3 Monitoramento de Recursos
+
+- [x] **Sistema de Monitoramento Windows**
+  - [x] Monitoramento de CPU via WMI
+  - [x] Monitoramento de memória
+  - [ ] Monitoramento de disco
+  - [ ] Monitoramento de rede
+  - [ ] Watchdog do Windows
+  - [ ] Integração com Event Viewer para logging
+
+##### W1.4 Interface com o Sistema Operacional
+
+- [x] **Abstração do SO Windows**
+  - [x] Detecção de versão do Windows
+  - [x] Verificação de compatibilidade
+  - [ ] Gerenciamento de processos
+  - [ ] Inicialização automática no logon
+  - [ ] Configuração de firewall
+
+#### W2. Componentes Específicos para Windows
+
+##### W2.1 Ferramentas de Diagnóstico
+
+- [ ] **Kit de Diagnóstico Windows**
+  - [ ] Verificador de saúde de interfaces de rede
+  - [ ] Diagnóstico de problemas de captura
+  - [ ] Análise de portas em uso
+  - [ ] Teste de conectividade UDP
+  - [ ] Validação de permissões
+
+##### W2.2 Integração com UI Nativa
+
+- [ ] **Interface Gráfica Windows**
+  - [ ] Ícone na área de notificação (system tray)
+  - [ ] Menu de contexto
+  - [ ] Notificações nativas do Windows
+  - [ ] Janela de controle básico
+  - [ ] Configurações via UI
+
+##### W2.3 Distribuição para Windows
+
+- [ ] **Pacote de Instalação Windows**
+  - [ ] Criação de instalador MSI/EXE
+  - [ ] Configuração de atualização automática
+  - [ ] Suporte a desinstalação limpa
+  - [ ] Verificação de requisitos mínimos
+  - [ ] Suporte a patches incrementais

@@ -1,0 +1,16 @@
+/.vscode/
+
+# Python Cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.pyw
+*.pyz
+
+# Logs
+*.log
+
+# Npcap
+npcap-*/
+
