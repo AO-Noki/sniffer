@@ -12,6 +12,12 @@ import platform
 import tempfile
 from typing import Dict, Any, Optional, Union, cast, TypedDict
 
+# Informações da aplicação
+APP_NAME = "AO Noki Sniffer"
+APP_VERSION = "0.1.0"
+APP_AUTHOR = "AO Noki"
+APP_DESCRIPTION = "Ferramenta para análise e monitoramento de tráfego do protocolo Photon"
+
 # Configurações de protocolo
 PHOTON_DEFAULT_PORT = 5056
 PHOTON_PROTOCOLS = ["UDP", "TCP", "WebSocket", "HTTP"]
@@ -33,9 +39,9 @@ LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
 # Nomes de processos
 PROCESS_NAMES = {
-    "windows": "aonoki-sniffer.exe",
-    "linux": "aonoki-sniffer",
-    "darwin": "aonoki-sniffer"
+    "windows": "ao-noki-sniffer.exe",
+    "linux": "ao-noki-sniffer",
+    "darwin": "ao-noki-sniffer"
 }
 
 # URLs
@@ -293,12 +299,6 @@ log_file = os.path.join(CONFIG.get("log_dir", ""), "config.log")
 file_handler = logging.FileHandler(log_file, encoding='utf-8')
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(file_handler)
-
-# Informações da aplicação
-APP_NAME = "AO-Noki Sniffer"
-APP_VERSION = "0.1.0"
-APP_AUTHOR = "AO-Noki"
-APP_DESCRIPTION = "Ferramenta para análise e monitoramento de tráfego do protocolo Photon"
 
 def get_config() -> ConfigManager:
     """
