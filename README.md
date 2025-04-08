@@ -35,6 +35,16 @@ O AO-Noki Sniffer é compatível com os seguintes sistemas operacionais:
 
 O sistema utiliza a codificação CP850 para decodificar a saída de comandos no Windows, que é a codificação padrão do console em português. Isso garante que caracteres especiais sejam exibidos corretamente.
 
+### Diretórios de Configuração
+
+O AO-Noki Sniffer armazena suas configurações e dados nos seguintes locais, dependendo do sistema operacional:
+
+- **Windows**: `C:\ProgramData\AO-Noki\Sniffer`
+- **macOS**: `~/Library/Application Support/AO-Noki/Sniffer`
+- **Linux**: `~/.config/AO-Noki/Sniffer` (configurações) e `~/.local/share/AO-Noki/Sniffer` (dados)
+
+Os logs são armazenados em subdiretórios `logs` dentro desses caminhos.
+
 ## Requisitos do Sistema
 
 - Windows 10/11, Linux, macOS, Android 9+ ou iOS 14+
@@ -163,35 +173,35 @@ Na inicialização, o sniffer verifica automaticamente se está sendo executado 
 
 A aplicação usa os seguintes diretórios específicos por sistema operacional:
 
-#### Windows
+#### Windows (Sistema)
 
 - **Instalação**: `C:\Program Files\AO-Noki\Sniffer\`
 - **Logs**: `C:\ProgramData\AO-Noki\Sniffer\logs\`
 - **Configuração**: `C:\ProgramData\AO-Noki\Sniffer\configs\`
 - **Temporário**: `%TEMP%\AO-Noki\Sniffer\`
 
-#### Linux
+#### Linux (Sistema)
 
 - **Instalação**: `/opt/ao-noki/sniffer/`
 - **Logs**: `/var/log/ao-noki/sniffer/`
 - **Configuração**: `/etc/ao-noki/sniffer/`
 - **Temporário**: `/tmp/ao-noki/sniffer/`
 
-#### macOS
+#### macOS (Sistema)
 
 - **Instalação**: `/Applications/AO-Noki Sniffer.app/`
 - **Logs**: `~/Library/Logs/AO-Noki/Sniffer/`
 - **Configuração**: `~/Library/Application Support/AO-Noki/Sniffer/`
 - **Temporário**: `/tmp/ao-noki/sniffer/`
 
-#### Android
+#### Android (Mobile)
 
 - **Instalação**: `/data/data/com.termux/files/home/ao-noki/sniffer/` ou `/data/local/ao-noki/sniffer/`
 - **Logs**: `/sdcard/Android/data/ao.noki.sniffer/logs/`
 - **Configuração**: `/sdcard/Android/data/ao.noki.sniffer/configs/`
 - **Temporário**: `/data/local/tmp/ao-noki/sniffer/`
 
-#### iOS
+#### iOS (Mobile)
 
 - **Instalação**: Dentro do sandbox do aplicativo
 - **Logs**: Dentro do sandbox com acesso via compartilhamento de arquivos
@@ -202,19 +212,19 @@ A aplicação usa os seguintes diretórios específicos por sistema operacional:
 
 Quando executado com o argumento `-service`, o sniffer implementa múltiplos mecanismos para garantir sua execução contínua:
 
-#### Windows
+#### Windows (Windows 10/11)
 
 - Serviço do Windows com reinicialização automática
 - Tarefa agendada para verificação do serviço a cada 5 minutos
 - Registro de inicialização (opcional)
 
-#### Linux
+#### Linux (Ubuntu 20.04+, Debian 10+, CentOS 8+)
 
 - Serviço systemd com flag Restart=always
 - Timer systemd para verificação a cada 5 minutos
 - Crontab para verificação adicional (fallback)
 
-#### macOS
+#### macOS (macOS 10.15+)
 
 - Serviço launchd com KeepAlive=true
 - Watchdog para monitoramento e reinicialização
@@ -274,7 +284,7 @@ O sniffer requer uma conexão ativa com a internet para funcionar. Caso a conex�
 
 As aplicações cliente podem se conectar ao sniffer via WebSocket:
 
-```
+```text
 ws://localhost:10001/ws
 ```
 

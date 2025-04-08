@@ -9,18 +9,41 @@ import os
 import sys
 import argparse
 import logging
+import ctypes
 from typing import Dict, List, Optional, Any, Tuple
 
 # Importações locais
 from sniffer.platform import (
     ServiceManager, 
     PcapManager,
-    get_platform, 
-    request_admin
+    get_platform
 )
 
 # Configurar logger
 logger = logging.getLogger("sniffer.utils.cli")
+
+def request_admin() -> bool:
+    """
+    Verifica se o script está sendo executado com privilégios de administrador.
+    
+    Returns:
+        True se o script está sendo executado como administrador,
+        False caso contrário.
+    """
+    platform_name = get_platform()
+    
+    if platform_name == "windows":
+        try:
+            # Verificar se já está rodando como administrador no Windows
+            return bool(ctypes.windll.shell32.IsUserAnAdmin())
+        except Exception as e:
+            logger.error(f"Erro ao verificar privilégios de administrador: {e}")
+            return False
+    else:
+        # Em outras plataformas, apenas assumimos que não tem privilégios
+        # Uma verificação mais precisa seria implementada nas classes específicas da plataforma
+        logger.warning(f"Verificação de privilégios de administrador não implementada para {platform_name}")
+        return False
 
 class CommandLineParser:
     """
@@ -85,10 +108,17 @@ class CommandLineParser:
         )
         
         self.parser.add_argument(
+            "--host",
+            type=str,
+            default="0.0.0.0",
+            help="Host para o servidor WebSocket (padrão: 0.0.0.0)"
+        )
+        
+        self.parser.add_argument(
             "-p", "--port",
             type=int,
-            default=5055,
-            help="Porta para o servidor WebSocket (padrão: 5055)"
+            default=8080,
+            help="Porta para o servidor WebSocket (padrão: 8080)"
         )
         
         self.parser.add_argument(

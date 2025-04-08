@@ -1,6 +1,6 @@
-## Desenvolvimento
+# Desenvolvimento
 
-### Roadmap
+## Roadmap
 
 - [x] Implementação básica de captura de pacotes
 - [x] Decodificação do protocolo Photon
@@ -91,18 +91,20 @@
 
 ##### 3.1 Servidor WebSocket Escalonável
 
+- [x] **Implementação Assíncrona com asyncio**
+  - [x] Servidor WebSocket multi-cliente
+  - [x] Sistema de callbacks para eventos
 - [ ] **Sistema WebSocket de Alta Disponibilidade**
   - [ ] Implementação baseada em `websockets` com `asyncio` + `uvloop`
-  - [ ] Backpressure adaptativo para clientes lentos
-  - [ ] Pool dinâmico de workers baseado em uso de recursos (10-1000 conexões por worker)
-  - [ ] Circuit breaker para proteção contra sobrecarga (client back-off exponencial)
-  - [ ] Controle de fluxo bidirecional com buffer adaptativo
-  - [ ] Keep-alive inteligente com ping/pong otimizados por perfil de latência
-  - [ ] Reconexão com exponential backoff e jitter
-  - [ ] Detecção proativa de desconexões com failover automático
+  - [ ] Balanceamento automático de carga
+  - [ ] Fast reconnect com restabelecimento de estado
 
-##### 3.2 Filtros e Transformações
+##### 3.2 Gerenciamento de Conexão Resiliente
 
+- [x] **Manipulação de Desconexões**
+  - [x] Sistema de comunicação broadcast
+  - [x] Estrutura de mensagem padronizada
+- [ ] **Auto-recuperação de Conexão**
 - [ ] **Pipeline de Transformação de Eventos**
   - [ ] Sistema declarativo de filtros com otimização em tempo de execução
   - [ ] Transformação just-in-time de eventos para formatos específicos de cliente
@@ -321,8 +323,8 @@
   - [x] Detecção automática de Npcap/WinPcap
   - [x] Download e instalação automática do Npcap
   - [x] Obtenção de interfaces de rede para captura
-  - [ ] Inicialização otimizada de descritores de captura
-  - [ ] Configuração de promiscuous mode
+  - [x] Inicialização otimizada de descritores de captura
+  - [x] Configuração de promiscuous mode
   - [ ] Suporte a timestamping de hardware quando disponível
 
 ##### W1.3 Monitoramento de Recursos

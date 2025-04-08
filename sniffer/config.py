@@ -1,22 +1,27 @@
 """
-Módulo de configuração centralizada para o AO-Noki Sniffer.
+Módulo de configuração do AO-Noki Sniffer.
 
-Este módulo fornece constantes, classes e funções para gerenciar
-as configurações da aplicação de forma centralizada.
+Este módulo centraliza as configurações para toda a aplicação,
+incluindo constantes, classes e funções para gerenciar configurações.
 """
 
-import os
 import json
 import logging
+import os
 import platform
 import tempfile
-from typing import Dict, Any, Optional, Union, cast, TypedDict
+from typing import Dict, Any, Optional, TypedDict, Union, cast
 
-# Informações da aplicação
-APP_NAME = "AO Noki Sniffer"
+
+# Configuração do logger
+logger = logging.getLogger("sniffer.config")
+logger.setLevel(logging.INFO)
+
+# Constantes de aplicação
+APP_NAME = "AO-Noki Sniffer"
 APP_VERSION = "0.1.0"
-APP_AUTHOR = "AO Noki"
-APP_DESCRIPTION = "Ferramenta para análise e monitoramento de tráfego do protocolo Photon"
+APP_AUTHOR = "AO-Noki Team"
+APP_DESCRIPTION = "Sniffer para captura e análise de tráfego de rede do protocolo Photon"
 
 # Configurações de protocolo
 PHOTON_DEFAULT_PORT = 5056
@@ -24,7 +29,7 @@ PHOTON_PROTOCOLS = ["UDP", "TCP", "WebSocket", "HTTP"]
 
 # Configurações do WebSocket server
 WS_DEFAULT_PORT = 8080
-WS_DEFAULT_HOST = "127.0.0.1"
+WS_DEFAULT_HOST = "0.0.0.0"
 
 # Configurações da UI
 UI_DEFAULT_THEME = "dark"
@@ -81,6 +86,13 @@ class UiConfigDict(TypedDict, total=False):
     auto_scroll: bool
     font_size: int
 
+class ServerConfigDict(TypedDict, total=False):
+    host: str
+    port: int
+    ssl_enabled: bool
+    ssl_cert: str
+    ssl_key: str
+
 # Configurações padrão
 DEFAULT_CONFIG = {
     "network": {
@@ -114,6 +126,13 @@ DEFAULT_CONFIG = {
         "show_notifications": True,
         "auto_scroll": True,
         "font_size": 12
+    },
+    "server": {
+        "host": WS_DEFAULT_HOST,
+        "port": WS_DEFAULT_PORT,
+        "ssl_enabled": False,
+        "ssl_cert": "",
+        "ssl_key": ""
     }
 }
 
@@ -128,16 +147,21 @@ def get_platform_config():
     system = platform.system().lower()
     
     if system == "windows":
-        log_dir = os.path.join(os.environ.get("APPDATA", ""), "AO-Noki", "Sniffer", "logs")
-        config_dir = os.path.join(os.environ.get("APPDATA", ""), "AO-Noki", "Sniffer")
+        # Usar ProgramData para armazenar dados para todos os usuários
+        program_data = os.environ.get("PROGRAMDATA", "C:\\ProgramData")
+        log_dir = os.path.join(program_data, "AO-Noki", "Sniffer", "logs")
+        config_dir = os.path.join(program_data, "AO-Noki", "Sniffer")
         lock_file = os.path.join(tempfile.gettempdir(), "aonoki-sniffer.lock")
     elif system == "darwin":  # macOS
         log_dir = os.path.expanduser("~/Library/Logs/AO-Noki/Sniffer")
         config_dir = os.path.expanduser("~/Library/Application Support/AO-Noki/Sniffer")
         lock_file = "/tmp/aonoki-sniffer.lock"
     else:  # Linux e outros
-        log_dir = os.path.expanduser("~/.local/share/AO-Noki/Sniffer/logs")
-        config_dir = os.path.expanduser("~/.config/AO-Noki/Sniffer")
+        # No Linux, seguir padrão XDG
+        config_base = os.environ.get("XDG_CONFIG_HOME", os.path.expanduser("~/.config"))
+        data_base = os.environ.get("XDG_DATA_HOME", os.path.expanduser("~/.local/share"))
+        log_dir = os.path.join(data_base, "AO-Noki", "Sniffer", "logs")
+        config_dir = os.path.join(config_base, "AO-Noki", "Sniffer")
         lock_file = "/tmp/aonoki-sniffer.lock"
     
     return {
@@ -287,15 +311,12 @@ class ConfigManager:
         """
         return self.config.copy()
 
-# Instância global do gerenciador de configuração
+# Instância única global do gerenciador de configuração
 CONFIG = ConfigManager()
 
-# Configuração do logger
-logger = logging.getLogger("sniffer.config")
-logger.setLevel(logging.INFO)
-
 # Configurar handler de arquivo com UTF-8
-log_file = os.path.join(CONFIG.get("log_dir", ""), "config.log")
+log_file = os.path.join(CONFIG.platform_config.get("log_dir", ""), "config.log")
+os.makedirs(os.path.dirname(cast(str, log_file)), exist_ok=True)
 file_handler = logging.FileHandler(log_file, encoding='utf-8')
 file_handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
 logger.addHandler(file_handler)
@@ -307,7 +328,4 @@ def get_config() -> ConfigManager:
     Returns:
         Instância do ConfigManager.
     """
-    return CONFIG
-
-# Constante global para facilitar o acesso à configuração
-CONFIG = get_config() 
+    return CONFIG 

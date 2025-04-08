@@ -1,168 +1,179 @@
 """
-Ponto de entrada principal para o AO-Noki Sniffer.
+Módulo principal para execução do AO-Noki Sniffer.
 
-Este arquivo contém o código principal para inicializar e executar 
-o sniffer em diferentes modos (console, serviço, etc).
+Este módulo é executado quando o pacote é chamado como um script:
+`python -m sniffer`
 """
 
-import os
-import sys
 import logging
-import asyncio
-from typing import Dict, Any, Optional
+import os
+import signal
+import sys
+import threading
+import time
+from typing import Dict, Any, List, Optional
 
-# Importações locais
-from sniffer.utils import parse_and_process_args
-from sniffer.config import get_config
-from sniffer.platform import (
-    get_platform, 
-    is_platform_supported,
-    get_system_info,
-    is_service,
-    ServiceManager,
-    PcapManager
-)
+from sniffer.config import CONFIG, WS_DEFAULT_HOST, WS_DEFAULT_PORT
+from sniffer.platform import get_platform, is_platform_supported, get_system_info
+from sniffer.server import WebSocketServer
+from sniffer.utils.cli import parse_and_process_args
 
-# Carregar configuração centralizada
-config = get_config()
+logger = logging.getLogger("sniffer")
 
-# Configuração do logger
-log_level = getattr(logging, config.get("logs", "level", "INFO").upper())
-logging.basicConfig(
-    level=log_level,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.path.join(config.get("logs", "dir", os.path.dirname(__file__)), 'sniffer.log'))
-    ]
-)
-logger = logging.getLogger("sniffer.main")
 
-class SnifferApplication:
-    """Classe principal do aplicativo Sniffer."""
+class SnifferApp:
+    """
+    Aplicação principal do AO-Noki Sniffer.
+    
+    Esta classe é responsável por gerenciar a aplicação, incluindo
+    inicialização, configuração e ciclo de vida dos componentes.
+    """
     
     def __init__(self):
-        """Inicializa o aplicativo."""
+        """Inicializa a aplicação."""
         self.running = False
-        self.system_info = get_system_info()
-        self.platform = get_platform()
-        self.config = config
+        self.websocket_server: Optional[WebSocketServer] = None
+        self.capture_thread: Optional[threading.Thread] = None
         
-        # Verificar compatibilidade da plataforma
+        # Signal handlers para encerramento limpo
+        signal.signal(signal.SIGINT, self._signal_handler)
+        signal.signal(signal.SIGTERM, self._signal_handler)
+        
+        # Verificar plataforma
+        self.platform = get_platform()
+        self.system_info = get_system_info()
+        
         if not is_platform_supported():
             logger.error(f"Plataforma não suportada: {self.platform}")
             sys.exit(1)
         
-        # Processar argumentos de linha de comando
-        self.args_result, self.args = parse_and_process_args()
-        
-        # Se o processamento de argumentos indicar saída, encerrar
-        if self.args_result.get("exit", False):
-            logger.info(self.args_result.get("message", ""))
-            sys.exit(self.args_result.get("exit_code", 0))
-        
-        # Determinar modo de execução
-        self.mode = self.args_result.get("mode", "default")
-        
-        # Inicializar recursos conforme a plataforma
-        if self.platform == "windows":
-            self.pcap_manager = PcapManager()
-            
-            # Verificar Npcap/WinPcap
-            if not self.pcap_manager.is_npcap_installed and not self.pcap_manager.is_winpcap_installed:
-                logger.warning("Npcap ou WinPcap não detectado. A captura de pacotes pode não funcionar corretamente.")
-                
-                if getattr(self.args, "install_npcap", False) or self.config.get("system", "auto_install_dependencies", True):
-                    logger.info("Tentando instalar Npcap automaticamente...")
-                    self.pcap_manager.install_npcap()
-        
-        # Configurar modo de operação
-        app_name = self.config.get("app", "name")
-        app_version = self.config.get("app", "version")
-        logger.info(f"Iniciando {app_name} v{app_version} no modo: {self.mode}")
+        logger.info(f"Plataforma detectada: {self.platform}")
+        logger.debug(f"Informações do sistema: {self.system_info}")
     
-    async def run_console_mode(self):
-        """Executa o aplicativo no modo console."""
-        logger.info("Iniciando em modo console")
+    def _signal_handler(self, sig, frame):
+        """
+        Manipulador de sinais para encerramento limpo.
         
-        # Obter interfaces de rede disponíveis
-        if self.platform == "windows":
-            interfaces = self.pcap_manager.get_network_interfaces()
-            if interfaces:
-                logger.info(f"Interfaces de rede disponíveis: {len(interfaces)}")
-                for idx, interface in enumerate(interfaces):
-                    logger.info(f"  {idx+1}. {interface['name']} - {interface['description']} ({interface['ip']})")
-            else:
-                logger.warning("Nenhuma interface de rede encontrada")
-        
-        # Aqui implementaremos o loop principal do modo console
-        try:
-            logger.info("Pressione Ctrl+C para encerrar")
-            self.running = True
-            
-            # Loop principal (simulação)
-            while self.running:
-                # Simular atividade
-                await asyncio.sleep(1)
-                
-        except KeyboardInterrupt:
-            logger.info("Interrompido pelo usuário")
-            self.running = False
-        finally:
-            logger.info("Encerrando modo console")
+        Args:
+            sig: Sinal recebido
+            frame: Frame atual
+        """
+        logger.info(f"Sinal recebido: {sig}")
+        self.shutdown()
     
-    async def run_service_mode(self):
-        """Executa o aplicativo como serviço do sistema."""
-        logger.info("Iniciando em modo serviço")
+    def start(self, mode: str = "default", args: Any = None):
+        """
+        Inicia a aplicação no modo especificado.
         
-        # No modo serviço, não exibimos logs no console
-        for handler in logging.getLogger().handlers:
-            if isinstance(handler, logging.StreamHandler) and handler.stream == sys.stdout:
-                logging.getLogger().removeHandler(handler)
+        Args:
+            mode: Modo de execução (default, console, service)
+            args: Argumentos de linha de comando
+        """
+        if self.running:
+            logger.warning("A aplicação já está em execução")
+            return
         
-        # Aqui implementaremos o loop principal do modo serviço
-        try:
-            self.running = True
+        logger.info(f"Iniciando AO-Noki Sniffer no modo: {mode}")
+        
+        # Garantir que o arquivo de configuração seja criado
+        if not os.path.exists(CONFIG.config_file):
+            logger.info("Criando arquivo de configuração padrão")
+            CONFIG.save()
             
-            # Loop principal (simulação)
-            while self.running:
-                # Simular atividade
-                await asyncio.sleep(1)
-                
-        except Exception as e:
-            logger.error(f"Erro no modo serviço: {e}")
-            self.running = False
-        finally:
-            logger.info("Encerrando modo serviço")
-    
-    async def run(self):
-        """Executa o aplicativo no modo apropriado."""
-        if self.mode == "console":
-            await self.run_console_mode()
-        elif self.mode == "service":
-            await self.run_service_mode()
+        # Inicializar WebSocket server
+        ws_host = getattr(args, "host", CONFIG.get("server", "host", WS_DEFAULT_HOST))
+        ws_port = getattr(args, "port", CONFIG.get("server", "port", WS_DEFAULT_PORT))
+        self.websocket_server = WebSocketServer(host=ws_host, port=ws_port)
+        
+        if not self.websocket_server.start():
+            logger.error("Falha ao iniciar o servidor WebSocket")
+            return
+        
+        logger.info(f"Servidor WebSocket iniciado em {ws_host}:{ws_port}")
+        
+        # Iniciar modo de captura de pacotes
+        # TODO: Implementar captura de pacotes
+        
+        self.running = True
+        
+        # Execução específica para cada modo
+        if mode == "console":
+            self._run_console_mode()
+        elif mode == "service":
+            self._run_service_mode()
         else:
-            # Modo padrão - detectar automaticamente
-            if is_service():
-                await self.run_service_mode()
-            else:
-                await self.run_console_mode()
+            self._run_default_mode()
+    
+    def _run_console_mode(self):
+        """Executa a aplicação no modo console."""
+        logger.info("Executando em modo console")
+        logger.info("Pressione Ctrl+C para encerrar")
+        
+        try:
+            while self.running:
+                time.sleep(1)
+        except KeyboardInterrupt:
+            logger.info("Interrupção de teclado recebida")
+            self.shutdown()
+    
+    def _run_service_mode(self):
+        """Executa a aplicação no modo serviço."""
+        logger.info("Executando em modo serviço")
+        
+        # Em modo serviço, simplesmente aguardamos sinais externos
+        while self.running:
+            time.sleep(1)
+    
+    def _run_default_mode(self):
+        """Executa a aplicação no modo padrão (GUI)."""
+        logger.info("Executando em modo padrão")
+        
+        # No modo padrão, iniciamos a interface gráfica
+        # TODO: Implementar interface gráfica
+        
+        # Por enquanto, executamos como console
+        self._run_console_mode()
+    
+    def shutdown(self):
+        """Encerra a aplicação de forma limpa."""
+        if not self.running:
+            return
+        
+        logger.info("Encerrando AO-Noki Sniffer...")
+        
+        # Parar servidor WebSocket
+        if self.websocket_server:
+            logger.info("Parando servidor WebSocket...")
+            self.websocket_server.stop()
+            self.websocket_server = None
+        
+        # Parar thread de captura
+        if self.capture_thread and self.capture_thread.is_alive():
+            logger.info("Parando captura de pacotes...")
+            # TODO: Implementar parada da captura
+        
+        self.running = False
+        logger.info("AO-Noki Sniffer encerrado")
 
 
 def main():
-    """Função principal do aplicativo."""
-    app = SnifferApplication()
+    """Função principal para execução do AO-Noki Sniffer."""
+    # Processar argumentos de linha de comando
+    result, args = parse_and_process_args()
     
-    # Executar o aplicativo com asyncio
-    loop = asyncio.get_event_loop()
-    try:
-        loop.run_until_complete(app.run())
-    except KeyboardInterrupt:
-        logger.info("Aplicativo interrompido pelo usuário")
-    except Exception as e:
-        logger.error(f"Erro ao executar o aplicativo: {e}")
-    finally:
-        loop.close()
+    # Configurar nível de log
+    if getattr(args, "debug", False):
+        logging.getLogger().setLevel(logging.DEBUG)
+        logger.debug("Modo de depuração ativado")
+    
+    # Verificar se deve encerrar após processamento de argumentos
+    if result.get("exit", False):
+        logger.info(result.get("message", ""))
+        sys.exit(result.get("exit_code", 0))
+    
+    # Iniciar aplicação no modo especificado
+    app = SnifferApp()
+    app.start(mode=result.get("mode", "default"), args=args)
 
 
 if __name__ == "__main__":
