@@ -27,6 +27,7 @@
 #### 1. Fundação da Arquitetura
 
 ##### 1.1 Kernel de Captura de Alto Desempenho
+
 - [ ] **Microkernel de captura assíncrona**
   - [ ] Implementação com `asyncio` + `uvloop` para throughput 3-5x superior
   - [ ] Zero-copy buffer usando `memoryview` e `bytearray` pré-alocados
@@ -37,6 +38,7 @@
   - [ ] Mecanismo de throttling adaptativo baseado em latência de processamento
 
 ##### 1.2 Stack de Rede Otimizada
+
 - [ ] **Pipeline Zero-Copy de Processamento de Pacotes**
   - [ ] Extração de protocolos usando shifts bit-a-bit sem conversões intermediárias
   - [ ] Direct Memory Access quando disponível no hardware
@@ -46,6 +48,7 @@
   - [ ] Compilação Just-In-Time (JIT) de filtros de pacote usando `numba`
 
 ##### 1.3 Módulo Photon Fault-Tolerant
+
 - [ ] **Engine Robusta de Decodificação Photon**
   - [ ] Parser de protocolo resiliente a malformações com recuperação de estado
   - [ ] Máquina de estados finita (FSM) para reconstrução confiável de mensagens
@@ -57,6 +60,7 @@
 #### 2. Otimizações Críticas de Performance
 
 ##### 2.1 Estratégias de Cache Avançadas
+
 - [ ] **LRU Multi-nível Hierárquico**
   - [ ] Cache L1 (ultra-rápido): Dicionários pré-hashados em memória para lookups O(1)
   - [ ] Cache L2: `lru_cache` otimizado com `functools` e expiração temporal
@@ -65,6 +69,7 @@
   - [ ] Garbage collection manual escalonado para evitar pausas do GC durante picos
 
 ##### 2.2 Otimizações de CPU e Memória
+
 - [ ] **Motor de Processamento Vectorizado**
   - [ ] Utilização de `numpy` para processamento vetorizado de arrays de pacotes
   - [ ] Processamento SIMD com extensões AVX/SSE quando disponíveis
@@ -74,6 +79,7 @@
   - [ ] Object pooling para estruturas de dados frequentes (pacotes, eventos, mensagens)
 
 ##### 2.3 Sistema de Serialização de Alto Desempenho
+
 - [ ] **Esquema de Serialização Híbrido**
   - [ ] Camada ultraleve de serialização binária (MessagePack/Protocol Buffers)
   - [ ] Soluções especializadas para serialização/deserialização
@@ -84,6 +90,7 @@
 #### 3. Arquitetura WebSocket Resiliente
 
 ##### 3.1 Servidor WebSocket Escalonável
+
 - [ ] **Sistema WebSocket de Alta Disponibilidade**
   - [ ] Implementação baseada em `websockets` com `asyncio` + `uvloop`
   - [ ] Backpressure adaptativo para clientes lentos
@@ -95,6 +102,7 @@
   - [ ] Detecção proativa de desconexões com failover automático
 
 ##### 3.2 Filtros e Transformações
+
 - [ ] **Pipeline de Transformação de Eventos**
   - [ ] Sistema declarativo de filtros com otimização em tempo de execução
   - [ ] Transformação just-in-time de eventos para formatos específicos de cliente
@@ -104,6 +112,7 @@
   - [ ] Transformação de coordenadas e normalização de valores em hardware quando disponível
 
 ##### 3.3 Sistema de QoS e Priorização
+
 - [ ] **Mecanismo Adaptativo de QoS**
   - [ ] Filas de prioridade para eventos críticos vs não-críticos
   - [ ] Rate limiting por cliente/IP com tokens configuráveis
@@ -114,6 +123,7 @@
 #### 4. Robustez e Tolerância a Falhas
 
 ##### 4.1 Sistema Avançado de Recuperação
+
 - [ ] **Framework de Resiliência Distribuída**
   - [ ] Replicação de estado com consistência eventual para componentes críticos
   - [ ] Watchdog hierárquico com health checks especializados por módulo
@@ -124,6 +134,7 @@
   - [ ] Sistema de heartbeat multinível (processo, thread, módulo)
 
 ##### 4.2 Monitoramento e Diagnóstico
+
 - [ ] **Instrumentação Profunda**
   - [ ] Profiling não-intrusivo com sampling adaptativo
   - [ ] Traçado de pacotes em modo debug ativável em runtime
@@ -134,6 +145,7 @@
   - [ ] Log estruturado com contexto enriquecido para troubleshooting
 
 ##### 4.3 Sistema de Logging Avançado
+
 - [ ] **Log Multi-dimensionado**
   - [ ] Formato estruturado (JSON) com campos indexáveis
   - [ ] Múltiplos backends: arquivo, syslog, banco de dados time-series
@@ -146,6 +158,7 @@
 #### 5. Segurança e Proteção
 
 ##### 5.1 Sistema de Autenticação e Autorização
+
 - [ ] **Mecanismo Robusto de Autenticação**
   - [ ] Autenticação token-based (JWT) com refresh automático
   - [ ] Integração HMAC para validação de integridade de mensagens
@@ -155,6 +168,7 @@
   - [ ] Proteção contra ataques comuns (brute force, replay, MitM)
 
 ##### 5.2 Sandbox e Isolamento
+
 - [ ] **Contenção de Privilégios**
   - [ ] Mecanismo de drop privilege após inicialização
   - [ ] Namespaces isolados para módulos críticos (quando disponível)
@@ -166,6 +180,7 @@
 #### 6. Plataforma Cross-platform Unificada
 
 ##### 6.1 Abstração de Plataforma
+
 - [ ] **Framework de Compatibilidade Universal**
   - [ ] HAL (Hardware Abstraction Layer) completa para todas as plataformas
   - [ ] Abstração de sistema de arquivos com paths normalizados
@@ -173,11 +188,12 @@
   - [ ] Service manager abstrato para argumento `-service`
     - [ ] Windows: API de Serviços do Windows
     - [ ] Linux: Interface systemd via dbus ou arquivos de configuração
-    - [ ] macOS: Wrapper para launchd 
+    - [ ] macOS: Wrapper para launchd
     - [ ] Android/iOS: Gerenciamento de serviços em foreground
   - [ ] Contêinerização opcional para ambientes Linux/macOS
 
 ##### 6.2 Estratégia para Dispositivos Móveis
+
 - [ ] **Arquitetura Específica Mobile**
   - [ ] Modo VPN para Android/iOS sem root
   - [ ] Otimização agressiva de bateria em mobile
@@ -188,6 +204,7 @@
 #### 7. Deployment e Atualização
 
 ##### 7.1 Pipeline de Build e Distribuição
+
 - [ ] **Sistema de Build Reproduzível**
   - [ ] Build determinístico com hash verificável
   - [ ] Compilação de extensões C otimizadas para cada plataforma
@@ -197,6 +214,7 @@
   - [ ] Geração de changelogs baseada em commits
 
 ##### 7.2 Sistema de Atualização Fault-Tolerant
+
 - [ ] **Motor de Atualizações Transacionais**
   - [ ] Atualizações delta para minimizar download
   - [ ] Verificação de integridade pré/pós atualização
@@ -209,6 +227,7 @@
 #### 8. Implementação Detalhada do Protocolo Photon
 
 ##### 8.1 Parser de Protocolo Photon de Alta Performance
+
 - [ ] **Decodificador Bytecode-optimizado**
   - [ ] Parser de baixo nível com otimização assembly-level
   - [ ] Decodificador de comandos com branch prediction otimizada
@@ -218,6 +237,7 @@
   - [ ] Manipulação eficiente de endianness com memoryviews
 
 ##### 8.2 Reconstrução de Fragmentos Avançada
+
 - [ ] **Sistema Resiliente de Reassembly**
   - [ ] Buffer anelar de fragmentos com janela deslizante
   - [ ] Controle de congestionamento adaptativo
@@ -227,6 +247,7 @@
   - [ ] Garbage collection eficiente para fragmentos órfãos
 
 ##### 8.3 Decodificação de Eventos Especializada
+
 - [ ] **Motor de Eventos de Alto Desempenho**
   - [ ] Compilação Just-In-Time de decodificadores específicos por tipo
   - [ ] Cache de esquemas de eventos frequentes
@@ -238,6 +259,7 @@
 #### 9. Gestão de Recursos e Adaptação Inteligente
 
 ##### 9.1 Sistema Avançado de Configuração
+
 - [ ] **Gerenciador de Configuração Dinâmica**
   - [ ] Hot-reload de configurações sem reinicialização
   - [ ] Validação estrutural com schema
@@ -249,6 +271,7 @@
   - [ ] Persistência do último modo de execução utilizado
 
 ##### 9.2 Gerenciamento Adaptativo de Recursos
+
 - [ ] **Orchestrator de Recursos**
   - [ ] Monitoramento em tempo real de CPU, memória, I/O
   - [ ] Throttling adaptativo baseado em utilização
@@ -260,6 +283,7 @@
 #### 10. Testes e Garantia de Qualidade
 
 ##### 10.1 Framework de Testes Abrangente
+
 - [ ] **Suite de Testes Multi-nível**
   - [ ] Testes unitários para cada componente
   - [ ] Testes de integração com mocks avançados
@@ -269,6 +293,7 @@
   - [ ] Fuzzing para encontrar casos limites
 
 ##### 10.2 Ambiente de Simulação
+
 - [ ] **Simulador de Rede e Protocolo**
   - [ ] Gerador de tráfego Photon sintético
   - [ ] Simulação de condições de rede adversas
@@ -279,4 +304,3 @@
 ### Roadmap de Implementação Inicial
 
 // ... existing code ...
-

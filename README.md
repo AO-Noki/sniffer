@@ -33,25 +33,30 @@ O Sniffer AO-Noki é uma ferramenta especializada para monitoramento de tráfego
 ### Dependências Específicas por Plataforma
 
 #### Windows
+
 - Npcap/WinPcap (instalado automaticamente se não encontrado)
 - Microsoft Visual C++ Redistributable (instalado automaticamente)
 - PowerShell 5.0+
 
 #### Linux
+
 - libpcap (instalado automaticamente via gerenciador de pacotes)
 - Python3-dev e compiladores (para módulos nativos)
 - systemd (para serviço)
 
 #### macOS
+
 - libpcap (instalado automaticamente via Homebrew)
 - Xcode Command Line Tools (solicitado ao usuário se necessário)
 
 #### Android
+
 - Terminal Emulator ou Termux
 - Root (para captura de pacotes) ou VPN mode
 - Bibliotecas Python compiladas para ARM
 
 #### iOS
+
 - iSH ou outro ambiente Linux
 - Modo VPN para captura de pacotes sem jailbreak
 
@@ -137,6 +142,7 @@ O sniffer é projetado para minimizar o consumo de recursos do sistema:
 ### Verificação de Compatibilidade
 
 Na inicialização, o sniffer verifica automaticamente se está sendo executado em uma plataforma suportada:
+
 - Se a plataforma não for suportada, o aplicativo exibe uma mensagem de erro e encerra
 - Se a versão do sistema operacional for incompatível, sugere atualização
 - Se hardware for insuficiente, exibe requisitos mínimos
@@ -146,30 +152,35 @@ Na inicialização, o sniffer verifica automaticamente se está sendo executado 
 A aplicação usa os seguintes diretórios específicos por sistema operacional:
 
 #### Windows
+
 - **Instalação**: `C:\Program Files\AO-Noki\Sniffer\`
 - **Logs**: `C:\ProgramData\AO-Noki\Sniffer\logs\`
 - **Configuração**: `C:\ProgramData\AO-Noki\Sniffer\configs\`
 - **Temporário**: `%TEMP%\AO-Noki\Sniffer\`
 
 #### Linux
+
 - **Instalação**: `/opt/ao-noki/sniffer/`
 - **Logs**: `/var/log/ao-noki/sniffer/`
 - **Configuração**: `/etc/ao-noki/sniffer/`
 - **Temporário**: `/tmp/ao-noki/sniffer/`
 
 #### macOS
+
 - **Instalação**: `/Applications/AO-Noki Sniffer.app/`
 - **Logs**: `~/Library/Logs/AO-Noki/Sniffer/`
 - **Configuração**: `~/Library/Application Support/AO-Noki/Sniffer/`
 - **Temporário**: `/tmp/ao-noki/sniffer/`
 
 #### Android
+
 - **Instalação**: `/data/data/com.termux/files/home/ao-noki/sniffer/` ou `/data/local/ao-noki/sniffer/`
 - **Logs**: `/sdcard/Android/data/ao.noki.sniffer/logs/`
 - **Configuração**: `/sdcard/Android/data/ao.noki.sniffer/configs/`
 - **Temporário**: `/data/local/tmp/ao-noki/sniffer/`
 
 #### iOS
+
 - **Instalação**: Dentro do sandbox do aplicativo
 - **Logs**: Dentro do sandbox com acesso via compartilhamento de arquivos
 - **Configuração**: Dentro do sandbox com interface de configuração
@@ -180,20 +191,24 @@ A aplicação usa os seguintes diretórios específicos por sistema operacional:
 Quando executado com o argumento `-service`, o sniffer implementa múltiplos mecanismos para garantir sua execução contínua:
 
 #### Windows
+
 - Serviço do Windows com reinicialização automática
 - Tarefa agendada para verificação do serviço a cada 5 minutos
 - Registro de inicialização (opcional)
 
 #### Linux
+
 - Serviço systemd com flag Restart=always
 - Timer systemd para verificação a cada 5 minutos
 - Crontab para verificação adicional (fallback)
 
 #### macOS
+
 - Serviço launchd com KeepAlive=true
 - Watchdog para monitoramento e reinicialização
 
 #### Android/iOS
+
 - Serviço em foreground com notificação persistente
 - Função de reinicialização na inicialização do dispositivo
 
@@ -238,6 +253,7 @@ O sniffer mantém logs detalhados das operações:
 ### Requisito de Conectividade
 
 O sniffer requer uma conexão ativa com a internet para funcionar. Caso a conexão seja perdida:
+
 - O aplicativo tentará restabelecer a conexão periodicamente
 - Um aviso será exibido para o usuário
 - As funcionalidades continuarão limitadas até que a conexão seja restaurada
@@ -340,6 +356,7 @@ O Albion Online utiliza o protocolo Photon para comunicação cliente-servidor. 
 ### Tipos de Mensagens
 
 As mensagens podem ser de diferentes tipos:
+
 - `OperationRequest (2)`: Solicitação de operação ao servidor
 - `OperationResponse (7)`: Resposta do servidor a uma solicitação
 - `EventData (4)`: Evento enviado pelo servidor
@@ -347,6 +364,7 @@ As mensagens podem ser de diferentes tipos:
 ### Fragmentação de Mensagens
 
 Mensagens grandes são divididas em fragmentos:
+
 1. Um pacote `SendReliableFragment` contém:
    - `SequenceNumber`: Identificador único da mensagem completa
    - `FragmentCount`: Número total de fragmentos
@@ -471,4 +489,4 @@ Juntos, podemos fazer a diferença para a comunidade de Albion Online!
 
 ---
 
-> "Jogar limpo é mais do que uma regra: é uma escolha." 
+> "Jogar limpo é mais do que uma regra: é uma escolha."
