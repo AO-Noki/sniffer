@@ -452,11 +452,12 @@ O projeto é estruturado nos seguintes componentes:
   - [x] **Captura de Pacotes Windows**: Integração com pcap usando Scapy
   - [x] **Interface com Protocolo Photon**: Classes para captura e análise de pacotes Photon
   - [x] **Testes para o Módulo Windows**: Validação da implementação Windows
-- [ ] **Implementação do Protocolo Photon**: Decodificador para o protocolo de rede
-  - [ ] **Estrutura Base do Parser**: Classes para decodificação de pacotes
-  - [ ] **Decodificação de Comandos**: Processamento de comandos Photon
-  - [ ] **Reconstrução de Mensagens**: Reagrupar mensagens fragmentadas
-  - [ ] **Parser de Eventos**: Analisar eventos específicos do jogo
+- [x] **Implementação do Protocolo Photon**: Decodificador para o protocolo de rede
+  - [x] **Estrutura Base do Parser**: Classes para decodificação de pacotes
+  - [x] **Decodificação de Comandos**: Processamento de comandos Photon
+  - [x] **Reconstrução de Mensagens**: Reagrupar mensagens fragmentadas
+  - [x] **Parser de Eventos**: Analisar eventos específicos do jogo
+  - [x] **Testes para o Decodificador**: Validação da implementação
 - [ ] **Servidor WebSocket**: Interface para enviar dados em tempo real
 - [ ] **Interface Web Básica**: Dashboard para exibir dados capturados
 - [ ] **Modo de Baixo Consumo**: Detecção do jogo e ajuste de uso de recursos

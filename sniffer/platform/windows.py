@@ -423,13 +423,19 @@ class WindowsSystemInfo:
                 "processor": platform.processor(),
                 "architecture": platform.architecture()[0],
                 "machine": platform.machine(),
-                "system": platform.system()
+                "system": platform.system(),
+                "python_version": platform.python_version(),
+                "platform": "windows",  # Garantir que a plataforma está definida
+                "hostname": platform.node(),
+                "supported": True,
+                "compatible": WindowsSystemInfo.is_compatible(),
+                "os_version": platform.version()
             }
             
             return system_info
         except Exception as e:
             logger.error(f"Erro ao obter informações do sistema: {e}")
-            return {"error": str(e)}
+            return {"error": str(e), "platform": "windows", "python_version": platform.python_version(), "os_version": platform.version()}
     
     @staticmethod
     def is_compatible() -> bool:

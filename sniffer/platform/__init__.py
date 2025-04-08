@@ -10,7 +10,8 @@ import logging
 import platform
 from typing import Dict, Any, Optional, cast
 
-from sniffer.platform.common import SystemInfo
+# Importar classe base
+from sniffer.platform.common import SystemInfo as BaseSystemInfo
 
 logger = logging.getLogger("sniffer.platform")
 
@@ -21,10 +22,10 @@ if sys.platform.startswith("win"):
     from sniffer.platform.windows import (
         WindowsServiceManager as ServiceManager,
         WindowsPcapManager as PcapManager,
-        WindowsSystemInfo,
+        WindowsSystemInfo as SystemInfo,
         is_running_as_service
     )
-    _platform_get_system_info = WindowsSystemInfo.get_windows_version
+    _platform_get_system_info = SystemInfo.get_windows_version
     from sniffer.platform.pcaptura import PcapInstaller
     logger.info("Sistema operacional Windows detectado")
 elif sys.platform.startswith("linux"):
@@ -55,7 +56,11 @@ def get_platform() -> str:
 
 def get_system_info() -> Dict[str, Any]:
     """Retorna informações sobre o sistema operacional atual."""
-    return cast(Dict[str, Any], _platform_get_system_info())
+    info = cast(Dict[str, Any], _platform_get_system_info())
+    # Garantir que a chave 'platform' esteja presente
+    if 'platform' not in info:
+        info['platform'] = current_platform
+    return info
 
 def is_platform_supported() -> bool:
     """Verifica se a plataforma atual é suportada."""
@@ -74,6 +79,7 @@ __all__ = [
     "get_system_info",
     "is_platform_supported",
     "is_service",
+    "SystemInfo",  # Adicionar explicitamente a classe SystemInfo
 ]
 
 # Adicionar classes específicas da plataforma quando disponíveis

@@ -199,23 +199,9 @@ class PhotonCommand:
                     sequence_number=sequence_number,
                     data=command_data
                 ), 8 + length
-                
-            elif cmd_type == PhotonCommandType.SEND_UNRELIABLE:
-                # Comando não confiável
-                command_data = data[8:8+length]
-                
-                return cls(
-                    command_type=cmd_type,
-                    channel_id=channel_id,
-                    flags=flags,
-                    reserved=reserved,
-                    length=length,
-                    sequence_number=0,  # Não tem número de sequência
-                    data=command_data
-                ), 8 + length
-                
+            
             else:
-                # Outros tipos de comandos
+                # Outros comandos não têm número de sequência
                 command_data = data[8:8+length]
                 
                 return cls(
@@ -231,133 +217,32 @@ class PhotonCommand:
         except struct.error as e:
             logger.error(f"Erro ao decodificar comando Photon: {e}")
             return None, 0
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Converte o comando para um dicionário.
-        
-        Returns:
-            Dicionário com os campos do comando
-        """
-        return {
-            "type": self.command_type,
-            "type_name": self._get_command_type_name(),
-            "channel_id": self.channel_id,
-            "flags": self.flags,
-            "length": self.length,
-            "sequence_number": self.sequence_number,
-            "data_length": len(self.data)
-        }
-    
-    def _get_command_type_name(self) -> str:
-        """Retorna o nome do tipo de comando."""
-        command_names = {
-            PhotonCommandType.ACKNOWLEDGE: "Acknowledge",
-            PhotonCommandType.CONNECT: "Connect",
-            PhotonCommandType.VERIFY_CONNECT: "VerifyConnect",
-            PhotonCommandType.DISCONNECT: "Disconnect",
-            PhotonCommandType.PING: "Ping",
-            PhotonCommandType.SEND_RELIABLE: "SendReliable",
-            PhotonCommandType.SEND_UNRELIABLE: "SendUnreliable",
-            PhotonCommandType.SEND_RELIABLE_FRAGMENT: "SendReliableFragment"
-        }
-        return command_names.get(self.command_type, f"Unknown({self.command_type})")
-
-class FragmentInfo:
-    """Informações sobre um fragmento de mensagem."""
-    
-    def __init__(self, sequence_number: int, fragment_count: int, fragment_number: int,
-                 total_length: int, fragment_offset: int, data: bytes):
-        """
-        Inicializa as informações de um fragmento.
-        
-        Args:
-            sequence_number: Número de sequência da mensagem completa
-            fragment_count: Número total de fragmentos
-            fragment_number: Número deste fragmento (0-indexed)
-            total_length: Tamanho total da mensagem completa
-            fragment_offset: Posição deste fragmento na mensagem completa
-            data: Conteúdo do fragmento
-        """
-        self.sequence_number = sequence_number
-        self.fragment_count = fragment_count
-        self.fragment_number = fragment_number
-        self.total_length = total_length
-        self.fragment_offset = fragment_offset
-        self.data = data
-    
-    @classmethod
-    def from_command(cls, command: PhotonCommand) -> Optional['FragmentInfo']:
-        """
-        Extrai informações de fragmento de um comando SendReliableFragment.
-        
-        Args:
-            command: Objeto PhotonCommand do tipo SendReliableFragment
-            
-        Returns:
-            Objeto FragmentInfo ou None se a extração falhar
-        """
-        if command.command_type != PhotonCommandType.SEND_RELIABLE_FRAGMENT:
-            logger.warning(f"Tentativa de extrair fragmento de comando não fragmentado: {command.command_type}")
-            return None
-        
-        try:
-            # Cabeçalho de fragmento: IIII (uint, uint, uint, uint)
-            if len(command.data) < 16:
-                logger.warning(f"Dados insuficientes para cabeçalho de fragmento: {len(command.data)} bytes")
-                return None
-                
-            seq_number = command.sequence_number
-            frag_count, frag_number, total_length, frag_offset = struct.unpack("<IIII", command.data[:16])
-            frag_data = command.data[16:]
-            
-            return cls(
-                sequence_number=seq_number,
-                fragment_count=frag_count,
-                fragment_number=frag_number,
-                total_length=total_length,
-                fragment_offset=frag_offset,
-                data=frag_data
-            )
-        except struct.error as e:
-            logger.error(f"Erro ao decodificar cabeçalho de fragmento: {e}")
-            return None
-    
-    def to_dict(self) -> Dict[str, Any]:
-        """
-        Converte as informações do fragmento para um dicionário.
-        
-        Returns:
-            Dicionário com os campos do fragmento
-        """
-        return {
-            "sequence_number": self.sequence_number,
-            "fragment_count": self.fragment_count,
-            "fragment_number": self.fragment_number,
-            "total_length": self.total_length,
-            "fragment_offset": self.fragment_offset,
-            "data_length": len(self.data)
-        }
 
 class PhotonMessage:
-    """Representa uma mensagem Photon decodificada."""
+    """Representa uma mensagem do protocolo Photon."""
     
-    def __init__(self, message_type: int, payload: bytes):
+    def __init__(self, msg_type: int, code: int, parameters: Dict, return_code: int = 0, 
+                 debug_message: str = ""):
         """
         Inicializa uma mensagem Photon.
         
         Args:
-            message_type: Tipo da mensagem
-            payload: Conteúdo da mensagem
+            msg_type: Tipo da mensagem (operation, response, event)
+            code: Código da operação ou evento
+            parameters: Parâmetros da mensagem
+            return_code: Código de retorno (para respostas)
+            debug_message: Mensagem de depuração (para respostas)
         """
-        self.message_type = message_type
-        self.payload = payload
-        self.decoded_content = None
+        self.msg_type = msg_type
+        self.code = code
+        self.parameters = parameters
+        self.return_code = return_code
+        self.debug_message = debug_message
     
     @classmethod
-    def from_reliable_data(cls, data: bytes) -> Optional['PhotonMessage']:
+    def from_bytes(cls, data: bytes) -> Optional['PhotonMessage']:
         """
-        Decodifica uma mensagem a partir de dados de comando confiável.
+        Decodifica uma mensagem Photon a partir de bytes.
         
         Args:
             data: Bytes contendo a mensagem
@@ -365,16 +250,223 @@ class PhotonMessage:
         Returns:
             Objeto PhotonMessage ou None se a decodificação falhar
         """
-        if len(data) < 2:  # Precisamos de pelo menos 1 byte para tipo
+        if len(data) < 2:  # Pelo menos o tipo da mensagem é necessário
             logger.warning(f"Dados insuficientes para mensagem Photon: {len(data)} bytes")
             return None
         
         try:
-            message_type = data[0]
-            return cls(message_type=message_type, payload=data[1:])
+            # O primeiro byte é o tipo da mensagem
+            msg_type = data[0]
+            
+            if msg_type == PhotonMessageType.OPERATION_REQUEST:
+                # Operação: [type(1), operationCode(1), parameters]
+                if len(data) < 2:
+                    return None
+                
+                code = data[1]
+                parameters = cls._decode_parameters(data[2:])
+                
+                return cls(msg_type, code, parameters)
+                
+            elif msg_type == PhotonMessageType.OPERATION_RESPONSE:
+                # Resposta: [type(1), operationCode(1), returnCode(2), parameters, debugMessage]
+                if len(data) < 4:
+                    return None
+                
+                code = data[1]
+                return_code = struct.unpack("<h", data[2:4])[0]
+                
+                # Decodificar parâmetros e mensagem de debug
+                parameters = {}
+                debug_message = ""
+                
+                if len(data) > 4:
+                    # Verificar se há parâmetros
+                    if data[4] != 0:  # 0 indica ausência de parâmetros
+                        parameters = cls._decode_parameters(data[4:])
+                        
+                        # Encontrar posição da mensagem de debug após parâmetros
+                        # (isso é um pouco complexo e depende do formato exato)
+                        # Simplificação: procurar por um byte nulo seguido por um short
+                        for i in range(5, len(data) - 3):
+                            if data[i] == 0 and data[i+1] in (1, 2, 3):  # Tipos comuns para strings
+                                str_len = data[i+2]
+                                if i + 3 + str_len <= len(data):
+                                    debug_message = data[i+3:i+3+str_len].decode('utf-8', errors='ignore')
+                                break
+                
+                return cls(msg_type, code, parameters, return_code, debug_message)
+                
+            elif msg_type == PhotonMessageType.EVENT_DATA:
+                # Evento: [type(1), eventCode(1), parameters]
+                if len(data) < 2:
+                    return None
+                
+                code = data[1]
+                parameters = cls._decode_parameters(data[2:])
+                
+                return cls(msg_type, code, parameters)
+                
+            else:
+                logger.warning(f"Tipo de mensagem Photon desconhecido: {msg_type}")
+                return None
+                
         except Exception as e:
             logger.error(f"Erro ao decodificar mensagem Photon: {e}")
             return None
+    
+    @staticmethod
+    def _decode_parameters(data: bytes) -> Dict[int, Any]:
+        """
+        Decodifica parâmetros de uma mensagem Photon.
+        
+        Args:
+            data: Bytes contendo os parâmetros
+            
+        Returns:
+            Dicionário com os parâmetros decodificados
+        """
+        if not data or len(data) < 1:
+            return {}
+        
+        parameters = {}
+        
+        try:
+            # O primeiro byte indica o tipo do parâmetro
+            param_type = data[0]
+            
+            # Se o tipo for 0, não há parâmetros
+            if param_type == 0:
+                return {}
+                
+            # Se o tipo for hashtable (campo 0x68), decodificar chaves e valores
+            if param_type == 0x68:  # Hashtable
+                # Hashtable: [0x68, count, key1, value1, key2, value2, ...]
+                if len(data) < 3:
+                    return {}
+                
+                count = data[1]
+                offset = 2
+                
+                for _ in range(count):
+                    if offset + 2 > len(data):
+                        break
+                        
+                    # Chave (normalmente um byte)
+                    key = data[offset]
+                    offset += 1
+                    
+                    # Valor (depende do tipo)
+                    value_type = data[offset]
+                    offset += 1
+                    
+                    value, consumed = PhotonMessage._decode_value(data[offset:], value_type)
+                    offset += consumed
+                    
+                    parameters[key] = value
+            
+            # Se for outro tipo, tratar como um único parâmetro
+            else:
+                value, _ = PhotonMessage._decode_value(data[1:], param_type)
+                parameters[1] = value  # Usar 1 como chave padrão
+            
+            return parameters
+                
+        except Exception as e:
+            logger.error(f"Erro ao decodificar parâmetros Photon: {e}")
+            return {}
+    
+    @staticmethod
+    def _decode_value(data: bytes, value_type: int) -> Tuple[Any, int]:
+        """
+        Decodifica um valor com base no seu tipo.
+        
+        Args:
+            data: Bytes contendo o valor
+            value_type: Tipo do valor
+            
+        Returns:
+            Tupla (valor decodificado, bytes consumidos)
+        """
+        try:
+            # Tipos comuns no protocolo Photon
+            if value_type == 0x00:  # Null
+                return None, 0
+                
+            elif value_type == 0x01:  # Bool
+                return data[0] != 0, 1
+                
+            elif value_type == 0x02:  # Byte
+                return data[0], 1
+                
+            elif value_type == 0x03:  # Short
+                return struct.unpack("<h", data[:2])[0], 2
+                
+            elif value_type == 0x04:  # Int
+                return struct.unpack("<i", data[:4])[0], 4
+                
+            elif value_type == 0x05:  # Long
+                return struct.unpack("<q", data[:8])[0], 8
+                
+            elif value_type == 0x06:  # Float
+                return struct.unpack("<f", data[:4])[0], 4
+                
+            elif value_type == 0x07:  # Double
+                return struct.unpack("<d", data[:8])[0], 8
+                
+            elif value_type == 0x08:  # String (8-bit length)
+                if len(data) < 1:
+                    return "", 0
+                    
+                str_len = data[0]
+                if len(data) < 1 + str_len:
+                    return "", 1
+                    
+                return data[1:1+str_len].decode('utf-8', errors='ignore'), 1 + str_len
+                
+            elif value_type == 0x09:  # String (16-bit length)
+                if len(data) < 2:
+                    return "", 0
+                    
+                str_len = struct.unpack("<H", data[:2])[0]
+                if len(data) < 2 + str_len:
+                    return "", 2
+                    
+                return data[2:2+str_len].decode('utf-8', errors='ignore'), 2 + str_len
+                
+            elif value_type == 0x0A:  # String (32-bit length)
+                if len(data) < 4:
+                    return "", 0
+                    
+                str_len = struct.unpack("<I", data[:4])[0]
+                if len(data) < 4 + str_len:
+                    return "", 4
+                    
+                return data[4:4+str_len].decode('utf-8', errors='ignore'), 4 + str_len
+                
+            elif value_type == 0x0D:  # ByteArray (com comprimento de 32 bits)
+                if len(data) < 4:
+                    return b"", 0
+                    
+                array_len = struct.unpack("<I", data[:4])[0]
+                if len(data) < 4 + array_len:
+                    return b"", 4
+                    
+                return data[4:4+array_len], 4 + array_len
+                
+            elif value_type in (0x10, 0x18, 0x19, 0x1A):  # Array/Dictionary
+                # Por simplicidade, apenas retornar os bytes brutos
+                # Em uma implementação completa, esses tipos teriam sua própria decodificação
+                return data, len(data)
+                
+            else:
+                # Tipo desconhecido, retornar os bytes brutos
+                logger.warning(f"Tipo de valor Photon desconhecido: 0x{value_type:02x}")
+                return data, len(data)
+                
+        except Exception as e:
+            logger.error(f"Erro ao decodificar valor Photon: {e}")
+            return None, 0
     
     def to_dict(self) -> Dict[str, Any]:
         """
@@ -384,249 +476,47 @@ class PhotonMessage:
             Dicionário com os campos da mensagem
         """
         result = {
-            "type": self.message_type,
-            "type_name": self._get_message_type_name(),
-            "payload_length": len(self.payload)
+            "type": self.msg_type,
+            "code": self.code,
+            "parameters": self.parameters
         }
         
-        # Adicionar conteúdo decodificado, se disponível
-        if self.decoded_content:
-            result["content"] = self.decoded_content
+        if self.msg_type == PhotonMessageType.OPERATION_RESPONSE:
+            result["return_code"] = self.return_code
+            result["debug_message"] = self.debug_message
             
         return result
-    
-    def _get_message_type_name(self) -> str:
-        """Retorna o nome do tipo de mensagem."""
-        message_names = {
-            PhotonMessageType.OPERATION_REQUEST: "OperationRequest",
-            PhotonMessageType.OPERATION_RESPONSE: "OperationResponse",
-            PhotonMessageType.EVENT_DATA: "EventData"
-        }
-        return message_names.get(self.message_type, f"Unknown({self.message_type})")
 
-class FragmentBuffer:
-    """Gerencia fragmentos recebidos e reconstrói mensagens completas."""
-    
-    def __init__(self, max_age_seconds: int = 30):
-        """
-        Inicializa o buffer de fragmentos.
-        
-        Args:
-            max_age_seconds: Tempo máximo (em segundos) para manter fragmentos no buffer
-        """
-        self.fragments = {}  # Dict[sequence_number, Dict[fragment_number, FragmentInfo]]
-        self.fragment_timestamps = {}  # Dict[sequence_number, timestamp]
-        self.max_age_seconds = max_age_seconds
-    
-    def add_fragment(self, fragment: FragmentInfo) -> Optional[bytes]:
-        """
-        Adiciona um fragmento ao buffer e tenta reconstruir a mensagem completa.
-        
-        Args:
-            fragment: Informações do fragmento a adicionar
-            
-        Returns:
-            Dados da mensagem completa reconstruída, ou None se ainda faltar fragmentos
-        """
-        seq_num = fragment.sequence_number
-        
-        # Inicializar entrada para esta sequência, se necessário
-        if seq_num not in self.fragments:
-            self.fragments[seq_num] = {}
-            self.fragment_timestamps[seq_num] = time.time()
-        
-        # Adicionar este fragmento
-        self.fragments[seq_num][fragment.fragment_number] = fragment
-        
-        # Verificar se temos todos os fragmentos
-        if len(self.fragments[seq_num]) == fragment.fragment_count:
-            # Reconstruir a mensagem completa
-            result = self._reconstruct_message(seq_num, fragment.total_length)
-            
-            # Liberar memória
-            del self.fragments[seq_num]
-            del self.fragment_timestamps[seq_num]
-            
-            return result
-        
-        return None
-    
-    def _reconstruct_message(self, sequence_number: int, total_length: int) -> bytes:
-        """
-        Reconstrói uma mensagem completa a partir de seus fragmentos.
-        
-        Args:
-            sequence_number: Número de sequência da mensagem
-            total_length: Tamanho total esperado da mensagem
-            
-        Returns:
-            Dados reconstruídos da mensagem completa
-        """
-        # Criar buffer para a mensagem completa
-        result = bytearray(total_length)
-        
-        # Preencher com dados de cada fragmento
-        for frag_num, fragment in self.fragments[sequence_number].items():
-            start = fragment.fragment_offset
-            end = start + len(fragment.data)
-            result[start:end] = fragment.data
-        
-        return bytes(result)
-    
-    def cleanup_old_fragments(self) -> int:
-        """
-        Remove fragmentos antigos do buffer.
-        
-        Returns:
-            Número de sequências removidas
-        """
-        current_time = time.time()
-        sequences_to_remove = []
-        
-        # Identificar sequências antigas
-        for seq_num, timestamp in self.fragment_timestamps.items():
-            if current_time - timestamp > self.max_age_seconds:
-                sequences_to_remove.append(seq_num)
-        
-        # Remover sequências antigas
-        for seq_num in sequences_to_remove:
-            del self.fragments[seq_num]
-            del self.fragment_timestamps[seq_num]
-        
-        return len(sequences_to_remove)
-
-class PhotonDecoder:
-    """Decodificador principal para o protocolo Photon."""
-    
-    def __init__(self):
-        """Inicializa o decodificador Photon."""
-        self.fragment_buffer = FragmentBuffer()
-        self.callbacks = []
-    
-    def add_callback(self, callback: Callable[[Dict[str, Any]], None]) -> None:
-        """
-        Adiciona uma função de callback para processar mensagens decodificadas.
-        
-        Args:
-            callback: Função que será chamada com a mensagem como argumento.
-        """
-        self.callbacks.append(callback)
-    
-    def decode_packet(self, packet_data: bytes) -> Optional[Dict[str, Any]]:
-        """
-        Decodifica um pacote Photon completo.
-        
-        Args:
-            packet_data: Bytes do pacote UDP contendo tráfego Photon
-            
-        Returns:
-            Dicionário com informações decodificadas, ou None se falhar
-        """
-        # Limpar fragmentos antigos periodicamente
-        self.fragment_buffer.cleanup_old_fragments()
-        
-        try:
-            # Decodificar cabeçalho Photon
-            header = PhotonHeader.from_bytes(packet_data)
-            if not header:
-                return None
-            
-            result = {
-                "timestamp": time.time(),
-                "header": header.to_dict(),
-                "commands": []
-            }
-            
-            # Posição atual nos dados
-            pos = 12  # Após o cabeçalho
-            
-            # Decodificar comandos
-            for i in range(header.command_count):
-                if pos >= len(packet_data):
-                    break
-                
-                command, bytes_read = PhotonCommand.from_bytes(packet_data[pos:])
-                if not command:
-                    break
-                
-                pos += bytes_read
-                command_data = command.to_dict()
-                result["commands"].append(command_data)
-                
-                # Processar comando conforme seu tipo
-                self._process_command(command, result)
-            
-            # Chamar callbacks se tiverem mensagens decodificadas
-            if "messages" in result:
-                for callback in self.callbacks:
-                    try:
-                        callback(result)
-                    except Exception as e:
-                        logger.error(f"Erro ao chamar callback para pacote Photon: {e}")
-            
-            return result
-            
-        except Exception as e:
-            logger.error(f"Erro ao decodificar pacote Photon: {e}")
-            return None
-    
-    def _process_command(self, command: PhotonCommand, result: Dict[str, Any]) -> None:
-        """
-        Processa um comando Photon e atualiza o resultado.
-        
-        Args:
-            command: Comando a processar
-            result: Dicionário de resultado a atualizar
-        """
-        # Inicializar lista de mensagens no resultado, se necessário
-        if "messages" not in result:
-            result["messages"] = []
-        
-        # Processar conforme o tipo de comando
-        if command.command_type == PhotonCommandType.SEND_RELIABLE:
-            # Mensagem confiável - decodificar diretamente
-            message = PhotonMessage.from_reliable_data(command.data)
-            if message:
-                result["messages"].append(message.to_dict())
-        
-        elif command.command_type == PhotonCommandType.SEND_RELIABLE_FRAGMENT:
-            # Fragmento de mensagem confiável - processar no buffer
-            fragment = FragmentInfo.from_command(command)
-            if fragment:
-                # Adicionar ao buffer e verificar se a mensagem está completa
-                complete_message_data = self.fragment_buffer.add_fragment(fragment)
-                if complete_message_data:
-                    # Temos uma mensagem completa - decodificar
-                    message = PhotonMessage.from_reliable_data(complete_message_data)
-                    if message:
-                        result["messages"].append(message.to_dict())
-        
-        elif command.command_type == PhotonCommandType.SEND_UNRELIABLE:
-            # Mensagem não confiável - decodificar diretamente
-            message = PhotonMessage.from_reliable_data(command.data)
-            if message:
-                result["messages"].append(message.to_dict())
-
-# Criando um decodificador global para uso em todo o sistema
-photon_decoder = PhotonDecoder()
-
-def decode_photon_packet(packet_data: bytes) -> Optional[Dict[str, Any]]:
-    """
-    Função auxiliar para decodificar um pacote Photon.
-    
-    Args:
-        packet_data: Bytes do pacote contendo tráfego Photon
-        
-    Returns:
-        Dicionário com informações decodificadas, ou None se falhar
-    """
-    return photon_decoder.decode_packet(packet_data)
+# Funções de ajuda para processar mensagens Photon
+_photon_callbacks = []
 
 def add_photon_message_callback(callback: Callable[[Dict[str, Any]], None]) -> None:
     """
-    Adiciona um callback para mensagens Photon decodificadas.
+    Adiciona uma função de callback para mensagens Photon decodificadas.
     
     Args:
-        callback: Função a ser chamada quando uma mensagem for decodificada.
+        callback: Função que será chamada com a mensagem decodificada.
     """
-    photon_decoder.add_callback(callback) 
+    global _photon_callbacks
+    _photon_callbacks.append(callback)
+
+def photon_decoder(message: PhotonMessage) -> Dict[str, Any]:
+    """
+    Processa uma mensagem Photon e notifica os callbacks.
+    
+    Args:
+        message: Objeto PhotonMessage a processar.
+        
+    Returns:
+        Dicionário com os dados da mensagem processada.
+    """
+    message_data = message.to_dict()
+    
+    # Notificar callbacks
+    for callback in _photon_callbacks:
+        try:
+            callback(message_data)
+        except Exception as e:
+            logger.error(f"Erro ao executar callback para mensagem Photon: {e}")
+    
+    return message_data 
