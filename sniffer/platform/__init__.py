@@ -1,142 +1,85 @@
 """
-Módulo de abstração de plataforma para o AO-Noki Sniffer.
+Detector de plataforma e adaptadores específicos para cada sistema operacional.
 
-Este módulo fornece uma interface unificada para funcionalidades específicas 
-de cada sistema operacional suportado, incluindo:
-- Windows (primária)
-- Linux (futura implementação)
-- macOS (futura implementação)
-- Android (futura implementação)
+Este módulo detecta automaticamente a plataforma atual e importa as classes
+e funções apropriadas para cada sistema operacional.
 """
 
-import os
 import sys
-import platform
 import logging
-from typing import Dict, Any, Optional, List, Union
+import platform
+from typing import Dict, Any, Optional, cast
 
-# Configurar logger
+from sniffer.platform.common import SystemInfo
+
 logger = logging.getLogger("sniffer.platform")
 
-# Identificar a plataforma atual
-CURRENT_PLATFORM = platform.system().lower()
-
-# Carregar módulo específico para a plataforma
-if CURRENT_PLATFORM == "windows":
-    from .windows import (
-        WindowsServiceManager,
-        WindowsPcapManager,
+# Detectar sistema operacional atual
+current_platform: str = "unknown"
+if sys.platform.startswith("win"):
+    current_platform = "windows"
+    from sniffer.platform.windows import (
+        WindowsServiceManager as ServiceManager,
+        WindowsPcapManager as PcapManager,
         WindowsSystemInfo,
-        is_running_as_service,
-        request_admin_privileges
+        is_running_as_service
     )
-    
-    # Classes e funções específicas para Windows
-    ServiceManager = WindowsServiceManager
-    PcapManager = WindowsPcapManager
-    SystemInfo = WindowsSystemInfo
-    
-    # Funções auxiliares para Windows
-    check_service_status = lambda: ServiceManager().get_service_status()
-    is_service = is_running_as_service
-    request_admin = request_admin_privileges
-
-# Futuramente implementaremos outras plataformas
-elif CURRENT_PLATFORM == "linux":
-    # Implementação futura
-    logger.warning("Suporte a Linux ainda não implementado completamente")
-    
-    # Classes provisórias para Linux
-    class ServiceManager:
-        def __init__(self): pass
-        def install_service(self): return False
-        def uninstall_service(self): return False
-        def start_service(self): return False
-        def stop_service(self): return False
-        def get_service_status(self): return None
-    
-    class PcapManager:
-        def __init__(self): pass
-        def get_network_interfaces(self): return []
-    
-    class SystemInfo:
-        @staticmethod
-        def is_compatible(): return False
-        
-    # Funções auxiliares para Linux
-    check_service_status = lambda: None
-    is_service = lambda: False
-    request_admin = lambda: False
-
-elif CURRENT_PLATFORM == "darwin":  # macOS
-    # Implementação futura
-    logger.warning("Suporte a macOS ainda não implementado completamente")
-    
-    # Classes provisórias para macOS
-    class ServiceManager:
-        def __init__(self): pass
-        def install_service(self): return False
-        def uninstall_service(self): return False
-        def start_service(self): return False
-        def stop_service(self): return False
-        def get_service_status(self): return None
-    
-    class PcapManager:
-        def __init__(self): pass
-        def get_network_interfaces(self): return []
-    
-    class SystemInfo:
-        @staticmethod
-        def is_compatible(): return False
-        
-    # Funções auxiliares para macOS
-    check_service_status = lambda: None
-    is_service = lambda: False
-    request_admin = lambda: False
-
+    _platform_get_system_info = WindowsSystemInfo.get_windows_version
+    from sniffer.platform.pcaptura import PcapInstaller
+    logger.info("Sistema operacional Windows detectado")
+elif sys.platform.startswith("linux"):
+    current_platform = "linux"
+    # Importar classes Linux quando disponíveis
+    logger.warning("Suporte ao Linux está em desenvolvimento")
+    from sniffer.platform.common import SystemInfo
+    _system_info = SystemInfo()
+    _platform_get_system_info = _system_info.get_system_info
+elif sys.platform.startswith("darwin"):
+    current_platform = "macos"
+    # Importar classes macOS quando disponíveis
+    logger.warning("Suporte ao macOS está em desenvolvimento")
+    from sniffer.platform.common import SystemInfo
+    _system_info = SystemInfo()
+    _platform_get_system_info = _system_info.get_system_info
 else:
-    logger.error(f"Plataforma não suportada: {CURRENT_PLATFORM}")
-    
-    # Classes genéricas para plataformas não suportadas
-    class ServiceManager:
-        def __init__(self): pass
-        def install_service(self): return False
-        def uninstall_service(self): return False
-        def start_service(self): return False
-        def stop_service(self): return False
-        def get_service_status(self): return None
-    
-    class PcapManager:
-        def __init__(self): pass
-        def get_network_interfaces(self): return []
-    
-    class SystemInfo:
-        @staticmethod
-        def is_compatible(): return False
-        
-    # Funções auxiliares para plataformas não suportadas
-    check_service_status = lambda: None
-    is_service = lambda: False
-    request_admin = lambda: False
+    current_platform = "unknown"
+    logger.warning(f"Sistema operacional não suportado: {sys.platform}")
+    from sniffer.platform.common import SystemInfo
+    _system_info = SystemInfo()
+    _platform_get_system_info = _system_info.get_system_info
 
-# Funções gerais independentes de plataforma
+# Definir funções de interface comum
 def get_platform() -> str:
     """Retorna o nome da plataforma atual."""
-    return CURRENT_PLATFORM
-
-def is_platform_supported() -> bool:
-    """Verifica se a plataforma atual é suportada pelo sniffer."""
-    return CURRENT_PLATFORM in ["windows", "linux", "darwin"]
+    return current_platform
 
 def get_system_info() -> Dict[str, Any]:
-    """Retorna informações gerais sobre o sistema."""
-    return {
-        "platform": CURRENT_PLATFORM,
-        "python_version": platform.python_version(),
-        "os_version": platform.version(),
-        "architecture": platform.architecture()[0],
-        "processor": platform.processor(),
-        "hostname": platform.node(),
-        "supported": is_platform_supported(),
-        "compatible": SystemInfo.is_compatible() if is_platform_supported() else False
-    } 
+    """Retorna informações sobre o sistema operacional atual."""
+    return cast(Dict[str, Any], _platform_get_system_info())
+
+def is_platform_supported() -> bool:
+    """Verifica se a plataforma atual é suportada."""
+    return current_platform in ["windows", "linux", "macos"]
+
+def is_service() -> bool:
+    """Verifica se a aplicação está rodando como serviço."""
+    if current_platform == "windows":
+        return is_running_as_service()
+    # Em outras plataformas, verificar como apropriado
+    return False
+
+# Exportação de símbolos para simplificar o uso
+__all__ = [
+    "get_platform",
+    "get_system_info",
+    "is_platform_supported",
+    "is_service",
+]
+
+# Adicionar classes específicas da plataforma quando disponíveis
+if "ServiceManager" in globals():
+    __all__.append("ServiceManager")
+if "PcapManager" in globals():
+    __all__.append("PcapManager")
+if "PcapInstaller" in globals():
+    __all__.append("PcapInstaller") 

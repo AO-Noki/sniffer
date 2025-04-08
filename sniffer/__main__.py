@@ -13,6 +13,7 @@ from typing import Dict, Any, Optional
 
 # Importações locais
 from sniffer.utils import parse_and_process_args
+from sniffer.config import get_config
 from sniffer.platform import (
     get_platform, 
     is_platform_supported,
@@ -22,13 +23,17 @@ from sniffer.platform import (
     PcapManager
 )
 
+# Carregar configuração centralizada
+config = get_config()
+
 # Configuração do logger
+log_level = getattr(logging, config.get("logs", "level", "INFO").upper())
 logging.basicConfig(
-    level=logging.INFO,
+    level=log_level,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
         logging.StreamHandler(sys.stdout),
-        logging.FileHandler(os.path.join(os.path.dirname(__file__), 'sniffer.log'))
+        logging.FileHandler(os.path.join(config.get("logs", "dir", os.path.dirname(__file__)), 'sniffer.log'))
     ]
 )
 logger = logging.getLogger("sniffer.main")
@@ -41,6 +46,7 @@ class SnifferApplication:
         self.running = False
         self.system_info = get_system_info()
         self.platform = get_platform()
+        self.config = config
         
         # Verificar compatibilidade da plataforma
         if not is_platform_supported():
@@ -66,12 +72,14 @@ class SnifferApplication:
             if not self.pcap_manager.is_npcap_installed and not self.pcap_manager.is_winpcap_installed:
                 logger.warning("Npcap ou WinPcap não detectado. A captura de pacotes pode não funcionar corretamente.")
                 
-                if getattr(self.args, "install_npcap", False):
+                if getattr(self.args, "install_npcap", False) or self.config.get("system", "auto_install_dependencies", True):
                     logger.info("Tentando instalar Npcap automaticamente...")
                     self.pcap_manager.install_npcap()
         
         # Configurar modo de operação
-        logger.info(f"Iniciando o sniffer no modo: {self.mode}")
+        app_name = self.config.get("app", "name")
+        app_version = self.config.get("app", "version")
+        logger.info(f"Iniciando {app_name} v{app_version} no modo: {self.mode}")
     
     async def run_console_mode(self):
         """Executa o aplicativo no modo console."""

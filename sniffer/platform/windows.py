@@ -19,8 +19,9 @@ import asyncio
 import platform
 
 # Importações locais
-from .pcaptura import PcapManager as BasePcapManager
+from .pcaptura import PcapManager
 from .pcaptura import PcapInstaller, PhotonCapture, SCAPY_AVAILABLE
+from ..config import get_config
 
 # Configuração do logger
 logger = logging.getLogger("sniffer.platform.windows")
@@ -28,13 +29,16 @@ logger = logging.getLogger("sniffer.platform.windows")
 class WindowsServiceManager:
     """Gerenciador de serviços para o Windows."""
     
-    SERVICE_NAME = "AONokiSniffer"
-    DISPLAY_NAME = "AO-Noki Photon Sniffer"
-    SERVICE_DESCRIPTION = "Captura e analisa pacotes do protocolo Photon para jogos online."
-    
     def __init__(self):
         self.service_path = os.path.abspath(sys.argv[0])
         self.is_admin = self._check_admin()
+        self.config = get_config()
+        
+        # Obter nome do serviço da configuração centralizada
+        self.SERVICE_NAME = self.config.get("app", "service_name")
+        self.DISPLAY_NAME = self.config.get("app", "name")
+        self.SERVICE_DESCRIPTION = self.config.get("app", "description", 
+                                                 "Captura e analisa pacotes do protocolo Photon para jogos online.")
     
     def _check_admin(self) -> bool:
         """Verifica se o processo atual possui privilégios de administrador."""
@@ -185,7 +189,7 @@ class WindowsPcapManager:
         # Inicializar o gerenciador de captura
         self.pcap_manager = None
         if SCAPY_AVAILABLE:
-            self.pcap_manager = BasePcapManager()
+            self.pcap_manager = PcapManager()
         
         # Verificar se a captura está disponível
         self.capture_available = SCAPY_AVAILABLE and (self.is_npcap_installed or self.is_winpcap_installed)
@@ -358,8 +362,9 @@ class WindowsPcapManager:
         try:
             import urllib.request
             
-            # URL do instalador do Npcap
-            npcap_url = "https://npcap.com/dist/npcap-1.75.exe"
+            # Obter URL do instalador do Npcap da configuração centralizada
+            config = get_config()
+            npcap_url = config.get("updates", "npcap_download_url", "https://npcap.com/dist/npcap-1.75.exe")
             
             logger.info(f"Baixando Npcap de {npcap_url} para {target_path}")
             urllib.request.urlretrieve(npcap_url, target_path)
@@ -393,7 +398,7 @@ class WindowsPcapManager:
             
             # Inicializar o gerenciador de captura e o Photon se não estiver inicializado
             if not self.pcap_manager and SCAPY_AVAILABLE:
-                self.pcap_manager = BasePcapManager()
+                self.pcap_manager = PcapManager()
                 self.photon_capture = PhotonCapture(self.pcap_manager)
                 self.capture_available = True
         
